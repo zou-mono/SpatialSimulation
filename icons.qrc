@@ -1,0 +1,30 @@
+<RCC>
+  <qresource prefix="icons">
+    <file>icons/GenericOpen32.png</file>
+    <file>icons/GenericBlackAdd32.png</file>
+    <file>icons/GenericBlackSubtract32.png</file>
+    <file>icons/MetadataImport32.png</file>
+    <file>icons/RasterImageAnalysisDifference16.png</file>
+    <file>icons/RasterImageAnalysisDifference32.png</file>
+    <file>icons/FolderAdd32.png</file>
+    <file>icons/Text_File32.png</file>
+    <file>icons/Folder32.png</file>
+    <file>icons/GenericSave32.png</file>
+    <file>icons/AnimationCreateGroup16.png</file>
+    <file>icons/AnimationCreateGroup32.png</file>
+    <file>icons/EditingAdjustmentModifyLink16.png</file>
+    <file>icons/EditingAdjustmentModifyLink32.png</file>
+    <file>icons/GeoprocessingToolbox48.png</file>
+    <file>icons/GeodatabaseDistributedSchemaCompare32.png</file>
+    <file>icons/GeodatabaseDistributedSchemaCompare16.png</file>
+    <file>icons/ArcScene48.png</file>
+    <file>icons/CoveragePolygonNoTopology32.png</file>
+    <file>icons/地理学院.png</file>
+    <file>icons/度量地理分布.png</file>
+    <file>icons/mActionPan.svg</file>
+    <file>icons/mActionZoomIn.svg</file>
+    <file>icons/mActionZoomOut.svg</file>
+    <file>icons/mActionDataSourceManager.svg</file>
+    <file>icons/mActionIdentify.svg</file>
+  </qresource>
+</RCC>
