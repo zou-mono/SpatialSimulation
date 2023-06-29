@@ -30,6 +30,8 @@ class Ui_Window(QMainWindow, UI.UIMainWindow.Ui_MainWindow):
         super(Ui_Window, self).__init__()
 
         self.setupUi(self)
+
+        self.setWindowState(Qt.WindowMaximized)  # 窗口最大化
         # self.setFixedSize(QSize(800, 600))
         self.statusbar.setSizeGripEnabled(False)
         # self.setDockNestingEnabled(False)
@@ -91,14 +93,14 @@ class Ui_Window(QMainWindow, UI.UIMainWindow.Ui_MainWindow):
 
     def createActions(self):
         self.actionAddLayer = QAction("加载图层...", self, shortcut="Ctrl+A",
-                               triggered=self.addLayer)
+                                      triggered=self.addLayer)
         self.actionAddLayer.setIcon(QIcon(QPixmap(":/icons/icons/mActionDataSourceManager.svg")))
 
         self.actionOpen = QAction("打开优化传导模型...", self, shortcut="Ctrl+O",
-                                      triggered=self.OpenParam)
+                                  triggered=self.OpenParam)
 
         self.actionExit = QAction("退出", self, shortcut="Ctrl+Q",
-                               triggered=self.exit)
+                                  triggered=self.exit)
 
         self.actionAbout = QAction("关于", self, triggered=self.about)
 

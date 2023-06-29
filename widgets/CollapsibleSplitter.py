@@ -93,13 +93,13 @@ class CollapsibleSplitter(QSplitter):
             self.button.clicked.connect(lambda: self.handleSplitterButton(self.splitterState))
 
     def eventFilter(self, obj: QObject, event: QEvent):
-        print(event.type())
-        if event.type() == QEvent.MouseMove:
-            print("move")
-        if event.type() == QEvent.KeyPress:
-            print("key presss")
-        if event.type() == QEvent.MouseButtonPress:
-            print("press")
+        # print(event.type())
+        # if event.type() == QEvent.MouseMove:
+        #     print("move")
+        # if event.type() == QEvent.KeyPress:
+        #     print("key presss")
+        # if event.type() == QEvent.MouseButtonPress:
+        #     print("press")
 
         return super().eventFilter(obj, event)
 

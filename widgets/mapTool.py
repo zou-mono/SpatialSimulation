@@ -180,7 +180,7 @@ class QActionIdentifyFeature(QAction):
 
         self.layers = layers
 
-    def showFeatures(self, identifyResults):
+    def showFeatures(self, identifyResults: list, endMapPoint: QgsPointXY):
         iLimit = 500
 
         layers = self.mapCanvas.layers()
@@ -205,7 +205,7 @@ class QActionIdentifyFeature(QAction):
 
         dockIdentifyResult = self.mapCanvas.window().dockIdentifyResult
         dockIdentifyResult.clear()
-        dockIdentifyResult.update(identified_dict)
+        dockIdentifyResult.updateForm(identified_dict, endMapPoint)
         dockIdentifyResult.show()
 
 

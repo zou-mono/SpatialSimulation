@@ -4,11 +4,13 @@ import traceback
 from PyQt5.QtCore import Qt, QSize, QThread, QModelIndex, QAbstractItemModel, QRegularExpression
 from PyQt5.QtGui import QDoubleValidator, QRegularExpressionValidator
 from PyQt5.QtWidgets import QApplication, QStyleFactory, QDialog, QDialogButtonBox, QWidget, QFileDialog, \
-    QAbstractButton, QMessageBox, QTableWidget, QComboBox, QStyledItemDelegate, QTableWidgetItem, QHeaderView
+    QAbstractButton, QMessageBox, QTableWidget, QComboBox, QStyledItemDelegate, QTableWidgetItem, QHeaderView, \
+    QAbstractItemView
 from PyQt5 import QtCore, QtGui
 import sys
 
 from openpyxl import load_workbook
+# from pyscipopt.scip import Model
 
 from UI.UIModelCal import Ui_frmModelCal
 from UICore.SpModel import modelCal
@@ -33,6 +35,8 @@ Grid_neccessary_fields = {
 Potential_Land_neccessary_fields = {
     '居住地块编号': ['LandID', 'num'],
     '居住地块用地路径类型': ['Type', 'num'],
+    '居住地块现状所有建筑面积': ['CurBldAdj', 'num'],
+    '居住地块现状居住建筑面积': ['CurRBld', 'num'],
     '新建居住建筑潜力面积': ['R_Po', 'num'],
     '是否在地铁站范围内': ['Metro_IF', 'num'],
     '可享用的公服面积': ['PubService', 'num']
@@ -58,6 +62,9 @@ class frmModelCal(QWidget, Ui_frmModelCal):
         self.btn_addGridFile.clicked.connect(self.addGridFile_clicked)
         self.btn_addPotentialLandFile.clicked.connect(self.addPotentialLandFile_clicked)
         self.buttonBox.clicked.connect(self.buttonBox_clicked)
+
+        self.tbl_GridField.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.tbl_PotentialLandField.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
         self.validateValue()
         self.bFirstShow = True
@@ -187,16 +194,15 @@ class frmModelCal(QWidget, Ui_frmModelCal):
         bValidate_name = True
         bValidate_type = True
         irow = 0
-        tbl.clear()
         tbl.setRowCount(0)
         for key, field in neccessary_fileds.items():
             tbl.insertRow(irow)
 
             newItem = QTableWidgetItem(key)
-            newItem.setFlags(QtCore.Qt.ItemIsEnabled)
+            # newItem.setFlags(QtCore.Qt.ItemIsEnabled)
             tbl.setItem(irow, 0, newItem)
 
-            combo = QComboBox()
+            combo = mComboBox()
             if field[1] == "num":
                 combo.addItems(field_num_list)
             elif field[1] == "str":
@@ -284,7 +290,17 @@ class frmModelCal(QWidget, Ui_frmModelCal):
                 modelCal(path_Grid, path_PotentialLand, lyr_Grid.GetName(), lyr_PotentialLand.GetName(),
                          self.vGrid_field, self.vPotential_field)
 
-                print("OK")
+                # model = Model("Example")
+                # x = model.addVar("x")
+                # y = model.addVar("y", vtype="INTEGER")
+                # model.setObjective(x + y)
+                # model.addCons(2*x - y*y >= 0)
+                # model.optimize()
+                # sol = model.getBestSol()
+                # print("x: {}".format(sol[x]))
+                # print("y: {}".format(sol[y]))
+
+                log.info("OK")
 
             elif button == self.buttonBox.button(QDialogButtonBox.Cancel):
                 self.threadTerminate()
@@ -382,6 +398,15 @@ class frmModelCal(QWidget, Ui_frmModelCal):
                 self.thread.wait()
         except:
             return
+
+
+class mComboBox(QComboBox):
+    def __init__(self):
+        super(mComboBox, self).__init__()
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
+
+    def wheelEvent(self, e: QtGui.QWheelEvent) -> None:
+        return
 
 
 if __name__ == '__main__':
