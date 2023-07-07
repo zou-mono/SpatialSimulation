@@ -1,18 +1,18 @@
 import os
 from os.path import basename
 
-from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon, QShowEvent, QPixmap
 from PyQt5.QtWidgets import QApplication, QMessageBox, QMainWindow, QSystemTrayIcon, QAction, QMenu, QFileDialog
 from PyQt5 import QtCore
 from qgis._core import QgsProject, QgsLayerTreeModel, QgsVectorLayer
-from qgis._gui import QgsLayerTreeMapCanvasBridge, QgsMapToolPan, QgsMapToolIdentifyFeature
+from qgis._gui import QgsLayerTreeMapCanvasBridge
 
 import UI.UIMainWindow
 import sys
 
 from UICore.Gv import Window_titles, Tools
-from forms import frmLogView, frmModelCal, frmIdentifyResult
+from forms import frmLogView, frmModelCal
 
 from UICore.log4p import Log
 from forms.frmIdentifyResult import frmIdentfiyResult

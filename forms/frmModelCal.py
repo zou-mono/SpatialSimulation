@@ -1,4 +1,5 @@
 import os
+import sysconfig
 import traceback
 
 from PyQt5.QtCore import Qt, QSize, QThread, QModelIndex, QAbstractItemModel, QRegularExpression
@@ -9,22 +10,23 @@ from PyQt5.QtWidgets import QApplication, QStyleFactory, QDialog, QDialogButtonB
 from PyQt5 import QtCore, QtGui
 import sys
 
-from openpyxl import load_workbook
-# from pyscipopt.scip import Model
+# from openpyxl import load_workbook
+import pandas as pd
+from pyscipopt.scip import Model
 
 from UI.UIModelCal import Ui_frmModelCal
 from UICore.SpModel import modelCal
 from UICore.log4p import Log
 from UICore.DataFactory import workspaceFactory
 from osgeo import ogr
-from UICore.Gv import DataType
+from UICore.Gv import DataType, model_config_params
 
 Slot = QtCore.pyqtSlot
 
 log = Log(__name__)
 
 Grid_neccessary_fields = {
-    '标准单元编号': ['UnitID', 'num'],
+    # '标准单元编号': ['UnitID', 'num'],
     '未来就业岗位': ['PlaJOB', 'num'],
     # '规划居住建筑总面积': ['PlaBS', 'num'],
     '单元现状人口总数': ['CurPOP', 'num'],
@@ -33,7 +35,7 @@ Grid_neccessary_fields = {
 }
 
 Potential_Land_neccessary_fields = {
-    '居住地块编号': ['LandID', 'num'],
+    # '居住地块编号': ['LandID', 'num'],
     '居住地块用地路径类型': ['Type', 'num'],
     '居住地块现状所有建筑面积': ['CurBldAdj', 'num'],
     '居住地块现状居住建筑面积': ['CurRBld', 'num'],
@@ -41,8 +43,6 @@ Potential_Land_neccessary_fields = {
     '是否在地铁站范围内': ['Metro_IF', 'num'],
     '可享用的公服面积': ['PubService', 'num']
 }
-
-config_path = r"config/params.xlsx"
 
 class frmModelCal(QWidget, Ui_frmModelCal):
     def __init__(self, parent=None):
@@ -71,47 +71,79 @@ class frmModelCal(QWidget, Ui_frmModelCal):
 
     #  初始化模型参数
     def init_model_param(self):
-        wb = None
+        config_path = model_config_params.config_path
+        param_file = model_config_params.param_file
+
+        param_path = os.path.join(config_path, param_file)
         try:
-            if os.path.exists(config_path):
-                wb = load_workbook(config_path, read_only=True)
-                lst_names = wb.sheetnames
+            if os.path.exists(param_path):
+                # wb = load_workbook(config_path, read_only=True)
+                df = pd.read_excel(param_path, sheet_name=None)
+                lst_names = list(df)
 
                 if "Potential_Constraint" not in lst_names or "IndicatorWeight" not in lst_names:
                     raise Exception("error")
 
-                sheet = wb["Potential_Constraint"]
-                self.txt_type_csgx.setText(str(sheet.cell(2, 3).value))
-                self.txt_type_tdzb.setText(str(sheet.cell(3, 3).value))
-                self.txt_type_zzgjz.setText(str(sheet.cell(4, 3).value))
-                self.txt_type_gygjz.setText(str(sheet.cell(5, 3).value))
-
-                sheet = wb["IndicatorWeight"]
-                self.txt_indicator_xzjjl.setText(str(sheet.cell(2, 2).value))
-                self.txt_indicator_ccjzl.setText(str(sheet.cell(3, 2).value))
-                self.txt_indicator_xtzs.setText(str(sheet.cell(4, 2).value))
-                self.txt_indicator_zzphzs.setText(str(sheet.cell(5, 2).value))
-                self.txt_indicator_jtkdx.setText(str(sheet.cell(6, 2).value))
-                self.txt_indicator_ggfwsp.setText(str(sheet.cell(7, 2).value))
+                self.use_params(param_path)
             else:
-                raise Exception("error")
+                log.warning("配置文件{}不存在，创建默认配置文件".format(config_path))
+
+                if not os.path.exists(config_path):
+                    os.mkdir(config_path)
+                if not os.path.exists(param_path):
+                    if not self.init_param_file(param_path):
+                        return
+                self.use_params(param_path)
         except:
             log.warning("读取参数配置文件{}发生错误，使用默认参数".format(config_path))
+            try:
+                os.remove(param_path)
+                if not self.init_param_file(param_path):
+                    return
+                self.use_params(param_path)
+            except:
+                log.error("{}被占用，请先关闭文件!".format(param_path))
 
-            self.txt_type_csgx.setText("1")
-            self.txt_type_tdzb.setText("1")
-            self.txt_type_zzgjz.setText("1")
-            self.txt_type_gygjz.setText("1")
+    def init_param_file(self, param_path):
+        write = None
+        try:
+            write = pd.ExcelWriter(param_path)
+            df = pd.DataFrame([{"Type": 6,"AREA": 0, 'R_Po_R': 0.5, 'Precision': 0.01, 'L_R_Po_R': 0.495, 'R_R_Po_R': 0.505},
+                               {"Type": 7,"AREA": 0, 'R_Po_R': 0.05, 'Precision': 0.01, 'L_R_Po_R': 0.0495, 'R_R_Po_R': 0.0505},
+                               {"Type": 8,"AREA": 0, 'R_Po_R': 0.1, 'Precision': 0.01, 'L_R_Po_R': 0.099, 'R_R_Po_R': 0.101},
+                               {"Type": 9,"AREA": 0, 'R_Po_R': 0.3, 'Precision': 0.01, 'L_R_Po_R': 0.297, 'R_R_Po_R': 0.303}])
+            df.to_excel(write, sheet_name=model_config_params.Potential_Constraint, index=False)
 
-            self.txt_indicator_xzjjl.setText("0.5")
-            self.txt_indicator_xtzs.setText("0.1")
-            self.txt_indicator_ccjzl.setText("0.1")
-            self.txt_indicator_jtkdx.setText("0.1")
-            self.txt_indicator_ggfwsp.setText("0.1")
-            self.txt_indicator_zzphzs.setText("0.1")
+            df = pd.DataFrame([{"Indicator": 'PlanBld',"Weight": 0.5},
+                               {"Indicator": 'ReversDemoBld',"Weight": 0.1},
+                               {"Indicator": 'ReversCampact',"Weight": 0.1},
+                               {"Indicator": 'Acc',"Weight": 0.1},
+                               {"Indicator": 'PublicServe',"Weight": 0.1},
+                               {"Indicator": 'BI',"Weight": 0.1}])
+            df.to_excel(write, sheet_name=model_config_params.IndicatorWeight, index=False)
+
+            return True
+        except:
+            log.error(traceback.format_exc())
+            return False
         finally:
-            if wb is not None:
-                wb.close()
+            if write is not None:
+                write.close()
+
+    def use_params(self, param_path):
+        df = pd.read_excel(param_path, sheet_name='Potential_Constraint')
+        self.txt_type_csgx.setText(str(df.at[0, 'R_Po_R']))
+        self.txt_type_tdzb.setText(str(df.at[1, 'R_Po_R']))
+        self.txt_type_zzgjz.setText(str(df.at[2, 'R_Po_R']))
+        self.txt_type_gygjz.setText(str(df.at[3, 'R_Po_R']))
+
+        df = pd.read_excel(param_path, sheet_name='IndicatorWeight')
+        self.txt_indicator_xzjjl.setText(str(df.at[0, 'Weight']))
+        self.txt_indicator_ccjzl.setText(str(df.at[1, 'Weight']))
+        self.txt_indicator_xtzs.setText(str(df.at[2, 'Weight']))
+        self.txt_indicator_zzphzs.setText(str(df.at[3, 'Weight']))
+        self.txt_indicator_jtkdx.setText(str(df.at[4, 'Weight']))
+        self.txt_indicator_ggfwsp.setText(str(df.at[5, 'Weight']))
 
     def showEvent(self, QShowEvent):
         self.table_init(self.tbl_GridField)
@@ -290,15 +322,15 @@ class frmModelCal(QWidget, Ui_frmModelCal):
                 modelCal(path_Grid, path_PotentialLand, lyr_Grid.GetName(), lyr_PotentialLand.GetName(),
                          self.vGrid_field, self.vPotential_field)
 
-                # model = Model("Example")
-                # x = model.addVar("x")
-                # y = model.addVar("y", vtype="INTEGER")
-                # model.setObjective(x + y)
-                # model.addCons(2*x - y*y >= 0)
-                # model.optimize()
-                # sol = model.getBestSol()
-                # print("x: {}".format(sol[x]))
-                # print("y: {}".format(sol[y]))
+                model = Model("Example")
+                x = model.addVar("x")
+                y = model.addVar("y", vtype="INTEGER")
+                model.setObjective(x + y)
+                model.addCons(2*x - y*y >= 0)
+                model.optimize()
+                sol = model.getBestSol()
+                log.info("x: {}".format(sol[x]))
+                log.info("y: {}".format(sol[y]))
 
                 log.info("OK")
 

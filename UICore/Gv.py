@@ -8,6 +8,14 @@ import time
 from enum import Enum
 
 
+class model_config_params():
+    Potential_Constraint = 'Potential_Constraint'
+    IndicatorWeight = 'IndicatorWeight'
+    PresetPara = 'PresetPara.csv'
+    config_path = r"config"
+    param_file = r"params.xlsx"
+
+
 class Dock(Enum):
     left = 0
     right = 1

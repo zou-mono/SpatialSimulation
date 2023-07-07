@@ -1,4 +1,5 @@
 import os
+import sqlite3
 import sys
 import time
 import traceback
@@ -19,12 +20,26 @@ name_layer_match = "居住潜力用地_标准单元匹配"
 name_CurRBld = "CurRBld"  # 居住地块现状居住建筑面积
 name_FixaddPOP = "FixaddPOP"  # 固定增加的居住人口
 name_weight = "Weight"  # 职住平衡分析权重
+name_unitid = "UnitID"  # 标准单元编号
+name_landid = "LandID" # 居住专规用地编号
+name_layer_Grid = "标准单元_0621"
+name_layer_PotentialLand = "居住专规潜力用地_0621"
+name_type = "type"
+name_r_po = "r_po"
+name_CurBldAdj = "CurBldAdj"
+name_MetroIF = "metro_if"
+name_PublicService = "pubservice"
 
 log = Log(__name__)
 
 def modelCal(path_Grid, path_PotentialLand, lyr_name_Grid, lyr_name_PotentialLand, vGrid_field, vPotential_field):
     wks = None
     datasource = None
+
+    global name_layer_Grid
+    name_layer_Grid = lyr_name_Grid
+    global name_layer_PotentialLand
+    name_layer_PotentialLand = lyr_name_PotentialLand
 
     cur_path, filename = os.path.split(os.path.abspath(sys.argv[0]))
     temp_sqliteDB_name = '%s.db' % (time.strftime('%Y-%m-%d-%H-%M-%S'))
@@ -53,6 +68,18 @@ def field_cal(dataSource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vP
     lyr_PotentialLand = dataSource.GetLayer(lyr_name_PotentialLand)
 
     try:
+        #  标准单元编号
+        create_new_field(lyr_Grid, name_unitid, ogr.OFTInteger64)
+        exec_str = r"UPDATE {} SET {}=ROWID".format(lyr_name_Grid, name_unitid)
+        exec_res = dataSource.ExecuteSQL(exec_str)
+        dataSource.ReleaseResultSet(exec_res)
+
+        # 居住专规用地编号
+        create_new_field(lyr_PotentialLand, name_landid, ogr.OFTInteger64)
+        exec_str = r"UPDATE {} SET {}=ROWID".format(lyr_name_PotentialLand, name_landid)
+        exec_res = dataSource.ExecuteSQL(exec_str)
+        dataSource.ReleaseResultSet(exec_res)
+
         log.info("计算职住系数...")
         # 1 职住系数
         create_new_field(lyr_Grid, name_zzphxs, ogr.OFTReal)
@@ -71,15 +98,18 @@ def field_cal(dataSource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vP
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
 
+        # geos的intesection算法会切出很多细碎的地块，可以考虑用st_area筛选一下
+        # where st_ara(geometry) > 0.1
         exec_str = '''
-            CREATE TABLE {} AS 
-                SELECT CastToMultiPolygon(st_intersection(p.geometry, c.GEOMETRY)) AS geometry, p.*, c.* FROM {} AS c, {} AS p 
-                    WHERE st_intersects(p.geometry, c.geometry) = 1 
-                    AND c.ROWID IN (
-                SELECT ROWID 
-                    FROM SpatialIndex
-                    WHERE f_table_name = '{}' 
-                    AND search_frame = p.geometry)
+            CREATE TABLE {} AS
+                select * from ( 
+                    SELECT CastToMultiPolygon(st_intersection(p.geometry, c.GEOMETRY)) AS geometry, p.*, c.* FROM {} AS c, {} AS p 
+                        WHERE st_intersects(p.geometry, c.geometry) = 1 
+                        AND c.ROWID IN (
+                    SELECT ROWID 
+                        FROM SpatialIndex
+                        WHERE f_table_name = '{}' 
+                        AND search_frame = p.geometry)) AS tlb_a where st_area(tlb_a.geometry) > 0.1 
         '''.format(name_layer_match, lyr_name_Grid, lyr_name_PotentialLand, lyr_name_Grid)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
@@ -103,26 +133,28 @@ def field_cal(dataSource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vP
         log.info('按面积比例更新"新建居住建筑潜力面积"、"居住地块现状所有建筑面积"、"居住地块现状居住建筑面积"字段'.format())
 
         # 3 按照切分后的面积比例重新计算r_po字段
-        r_po = vPotential_field["新建居住建筑潜力面积"]
-        exec_str = r"UPDATE {} SET {}=CAST(st_area(GEOMETRY) as real) * {} / area".format(name_layer_match, r_po, r_po)
+        global name_r_po
+        name_r_po = vPotential_field["新建居住建筑潜力面积"]
+        exec_str = r"UPDATE {} SET {}=CAST(st_area(GEOMETRY) as real) * {} / area".format(name_layer_match, name_r_po, name_r_po)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
 
         # 4 按照切分后的面积比例重新计算CurBldAdj字段
-        CurBldAdj = vPotential_field["居住地块现状所有建筑面积"]
-        exec_str = r"UPDATE {} SET {}=CAST(st_area(GEOMETRY) as real) * {} / area".format(name_layer_match, CurBldAdj, CurBldAdj)
+        global name_CurBldAdj
+        name_CurBldAdj = vPotential_field["居住地块现状所有建筑面积"]
+        exec_str = r"UPDATE {} SET {}=CAST(st_area(GEOMETRY) as real) * {} / area".format(name_layer_match, name_CurBldAdj, name_CurBldAdj)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
 
         # 5 按照切分后的面积比例重新计算CurRBld字段
-        CurRBld = vPotential_field["居住地块现状居住建筑面积"]
-        exec_str = r"UPDATE {} SET {}=CAST(st_area(GEOMETRY) as real) * {} / area".format(name_layer_match, CurRBld, CurRBld)
+        global name_CurRBld
+        name_CurRBld = vPotential_field["居住地块现状居住建筑面积"]
+        exec_str = r"UPDATE {} SET {}=CAST(st_area(GEOMETRY) as real) * {} / area".format(name_layer_match, name_CurRBld, name_CurRBld)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
 
         # 6 计算潜力用地面积
         log.info('计算"固定增加的居住建筑面积"...')
-
         create_new_field(lyr_Grid, name_FixedAddRS, ogr.OFTReal)
         exec_str = '''UPDATE {} as c0 SET {}=tbl_a.R_PO_SUM from 
         (SELECT SUM({}-{}) AS R_PO_SUM, c.ROWID as rid from {} AS p LEFT OUTER JOIN {} AS c ON
@@ -131,7 +163,7 @@ def field_cal(dataSource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vP
                 SELECT ROWID FROM SpatialIndex WHERE f_table_name = '{}'
                     AND search_frame = st_centroid(p.geometry))
             GROUP BY rid
-        ) AS tbl_a WHERE c0.ROWID=tbl_a.rid'''.format(lyr_name_Grid, name_FixedAddRS, r_po, name_CurRBld, name_layer_match,
+        ) AS tbl_a WHERE c0.ROWID=tbl_a.rid'''.format(lyr_name_Grid, name_FixedAddRS, name_r_po, name_CurRBld, name_layer_match,
                                                      lyr_name_Grid, lyr_name_Grid)
 
         exec_res = dataSource.ExecuteSQL(exec_str)
@@ -181,7 +213,7 @@ def field_cal(dataSource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vP
 
 def create_new_field(lyr, field_name, field_type, width=18, precision=10):
     index = lyr.FindFieldIndex(field_name, 0)
-    if index > 0:
+    if index > -1:
         lyr.DeleteField(index)
 
     new_field = ogr.FieldDefn(field_name, field_type)
