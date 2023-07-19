@@ -26,5 +26,6 @@
     <file>icons/mActionZoomOut.svg</file>
     <file>icons/mActionDataSourceManager.svg</file>
     <file>icons/mActionIdentify.svg</file>
+    <file>icons/mGeoPackage.svg</file>
   </qresource>
 </RCC>

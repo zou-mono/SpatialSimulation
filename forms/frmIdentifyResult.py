@@ -1,3 +1,5 @@
+import os
+
 from PyQt5.QtGui import QPalette
 from PyQt5.QtWidgets import QWidget, QTreeWidgetItem, QStyleFactory, QTableWidgetItem, QHeaderView, QAbstractItemView
 from qgis._core import QgsPointXY, Qgis
@@ -6,12 +8,13 @@ from UI.UIIdentifyResult import Ui_identifyResult
 from UICore.Gv import Window_titles, SplitterState, Dock
 from UICore.styles import table_default_style
 from widgets.mDock import mDock
-from PyQt5.QtCore import Qt, QSize, QItemSelectionModel
+from PyQt5.QtCore import Qt, QSize, QItemSelectionModel, pyqtSlot
 from qgis._gui import QgsMapToolIdentify, QgsFeatureListModel
 
 bFirstOpen = True
 info_text = "识别出{}个要素"
 
+Slot = pyqtSlot
 
 class frmIdentfiyResult(QWidget, Ui_identifyResult):
     dockIdentifyResult = None
@@ -61,6 +64,7 @@ class frmIdentfiyResult(QWidget, Ui_identifyResult):
         self.tlb_result.verticalHeader().setDefaultSectionSize(15)  # 高度
         table_default_style(self.tlb_result)  # 设置表格样式
 
+    @Slot(QTreeWidgetItem, int)
     def tree_result_itemClicked(self, item: QTreeWidgetItem, col: int):
         vLayeItem = item.data(col, Qt.UserRole)
         vFeatureItem = item.data(col, QgsFeatureListModel.Role.FeatureRole)
@@ -131,6 +135,8 @@ class frmIdentfiyResult(QWidget, Ui_identifyResult):
 
         self.lineEdit.setText("{}, {}".format(str(endMapPoint.x()), str(endMapPoint.y())))
         self.lbl_identifyInfo.setText("识别出{}个要素".format(str(iIdentify_count)))
+
+        print(py_dir_path)
 
     def layerItem(self, layer):
         for i in range(self.tree_result.topLevelItemCount()):

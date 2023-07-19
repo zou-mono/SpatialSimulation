@@ -1,17 +1,17 @@
 import os
 from os.path import basename
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QDir
 from PyQt5.QtGui import QIcon, QShowEvent, QPixmap
 from PyQt5.QtWidgets import QApplication, QMessageBox, QMainWindow, QSystemTrayIcon, QAction, QMenu, QFileDialog
 from PyQt5 import QtCore
-from qgis._core import QgsProject, QgsLayerTreeModel, QgsVectorLayer
+from qgis._core import QgsProject, QgsLayerTreeModel, QgsVectorLayer, QgsApplication, QgsProviderRegistry
 from qgis._gui import QgsLayerTreeMapCanvasBridge
 
 import UI.UIMainWindow
 import sys
 
-from UICore.Gv import Window_titles, Tools
+from UICore.Gv import Window_titles, Tools, main_path
 from forms import frmLogView, frmModelCal
 
 from UICore.log4p import Log
@@ -24,6 +24,7 @@ Slot = QtCore.pyqtSlot
 
 log = Log(__name__)
 
+py_file_path = os.path.abspath(__file__)
 
 class Ui_Window(QMainWindow, UI.UIMainWindow.Ui_MainWindow):
     def __init__(self):
@@ -31,6 +32,7 @@ class Ui_Window(QMainWindow, UI.UIMainWindow.Ui_MainWindow):
 
         self.setupUi(self)
 
+        self.setWindowTitle("居住用地布局优化传导系统")
         self.setWindowState(Qt.WindowMaximized)  # 窗口最大化
         # self.setFixedSize(QSize(800, 600))
         self.statusbar.setSizeGripEnabled(False)
@@ -55,7 +57,7 @@ class Ui_Window(QMainWindow, UI.UIMainWindow.Ui_MainWindow):
         self.createDockWindows()
 
         self.root = QgsProject.instance().layerTreeRoot()
-        self.model = QgsLayerTreeModel(self.root,self)
+        self.model = QgsLayerTreeModel(self.root, self)
         self.model.setFlag(QgsLayerTreeModel.AllowNodeReorder)
         self.model.setFlag(QgsLayerTreeModel.AllowNodeChangeVisibility)
         self.tocView.setModel(self.model)
@@ -280,7 +282,19 @@ class Ui_Window(QMainWindow, UI.UIMainWindow.Ui_MainWindow):
 
 if __name__ == '__main__':
     ogr.UseExceptions()
-    app = QApplication(sys.argv)
+    # app = QApplication(sys.argv)
+    main_path = os.path.dirname(py_file_path)
+
+    QgsApplication.setPrefixPath('', True)
+    app = QgsApplication([], True)
+    # QgsApplication.setPluginPath(r"D:\空间模拟\SpatialSimulation\dist\qgis\plugins")
+    # os.environ['QGIS_PROVIDER_FILE'] = "provider_spatialite"
+    # QgsApplication.initQgis()
+
+    # 指定data providers的路径
+    QgsProviderRegistry.instance().setLibraryDirectory(QDir(r".\qgis\plugins"))
+    log.debug("load providers {}".format(QgsProviderRegistry.instance().providerList()))
+
     # Enable high DPI scaling
     if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
         app.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)

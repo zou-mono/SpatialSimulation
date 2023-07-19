@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" http-equiv="Content-Type" Content="text/html">
+</head>
+<style type="text/css">
+    body, html { height:100%; padding:0; margin:0; overflow:hidden}
+</style>
+
+<body>
+<div id="container_radar" style="height: 50%"></div>
+<div id="container_hist" style="height: 50%"></div>
+<script type="text/javascript" src="echarts.min.js"></script>
+<script type="text/javascript">
+    var top_chart = echarts.init(document.getElementById("container_radar"));
+    var bottom_chart = echarts.init(document.getElementById("container_hist"));
+
+    var app = {};
+    option = null;
+    option = {
+        color: ['#67F9D8', '#FFE434', '#56A3F1', '#FF917C'],
+        title: {
+            text: '评价指标',
+            textAlign: 'center',
+            left: '50%'
+        },
+        tooltip: {
+            trigger: 'item',
+            position: "inside",
+            valueFormatter: (value) => {
+                if(value > 0 && value < 1)
+                    return value.toFixed(2)
+                else
+                    return value.toFixed(0)
+            }
+        },
+        legend: {
+            orient: 'vertical',
+            right: '10%',
+            top: "50%",
+            show: false
+        },
+        radar: [
+            {
+                indicator: [
+                    { text: 'Indicator1' },
+                    { text: 'Indicator2' },
+                    { text: 'Indicator3' },
+                    { text: 'Indicator4' },
+                    { text: 'Indicator5' }
+                ],
+                // center: ['75%', '50%'],
+                radius: 120,
+                axisName: {
+                    color: '#fff',
+                    backgroundColor: '#666',
+                    borderRadius: 3,
+                    padding: [3, 5]
+                }
+            }
+        ],
+        series: [
+            {
+                type: 'radar',
+                // tooltip: {
+                //     trigger: 'item'
+                // },
+                emphasis: {
+                    lineStyle: {
+                        width: 4
+                    }
+                },
+                data: [
+                    {
+                        // value: [100, 8, 0.4, -80, 2000],
+                        name: '评价指标',
+                        areaStyle: {
+                            color: 'rgba(255, 228, 52, 0.6)'
+                        }
+                    }
+                ]
+                // data: [
+                //     {
+                //         value: [100, 8, 0.4, -80, 2000],
+                //         name: 'Data A'
+                //     },
+                //     {
+                //         value: [60, 5, 0.3, -100, 1500],
+                //         name: 'Data B',
+                //         areaStyle: {
+                //             color: 'rgba(255, 228, 52, 0.6)'
+                //         }
+                //     }
+                // ]
+            }
+        ]
+    };
+
+    function showChart(indicator, values){
+        top_chart.showLoading();
+        if (option && typeof option === "object") {
+            // alert(indicator)
+            // option["series"][0]["data"][0]["value"] = var0;
+            // option["series"][0]["data"][1]["value"] = var1;
+            // option["series"][0]["data"][2]["value"] = var2;
+            // option["series"][0]["data"][3]["value"] = var3;
+            // option["series"][0]["data"][4]["value"] = var4;
+            // option["series"][0]["data"][5]["value"] = var5;
+            option["radar"][0]["indicator"] = indicator
+            option["series"][0]["data"][0]["value"] =  values;
+            top_chart.setOption(option, true);
+            top_chart.hideLoading();
+            return null
+        }
+    }
+
+    showChart(
+        [
+            { text: 'a' },
+            { text: 'Indicator2' },
+            { text: 'c' },
+            { text: 'Indicator4' },
+            { text: 'Indicator5' }
+        ],
+        [1500,300,500,2000,0.5])
+
+    window.onresize = function(){
+        top_chart.resize();
+        bottom_chart.resize();
+    };
+</script>
+</body>
+</html>

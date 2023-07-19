@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from sqlite3 import connect
 
 
@@ -9,6 +11,7 @@ class Sqlite:
 
     def _connect(self):
         self.connection = connect(self.db)
+        # self.connection.text_factory = str
         self.row_factory = self.connection.row_factory
         # print(f"连接Sqlite数据库：{self.db}成功！")
 
@@ -88,6 +91,7 @@ class Sqlite:
         row = {}
         try:
             self.connection.row_factory = self._dict_factory
+            # self.connection.text_factory = lambda x: x.encode('utf-8')
             cur = self.connection.cursor()
             cur.execute(sql, values)
             row = cur.fetchall()
