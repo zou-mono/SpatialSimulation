@@ -541,14 +541,9 @@ class ModelResult():
         self._name = ""  # 模型名称
         self._dataSource = ""  # 数据库datasource
         self._layers = {}  # 图形结果的名称
-        # self._gridPath = ""  # 标准单元图层路径
-        # self._landPath = ""  # 居住专规图层路径
+
         self._indicators = {}  # 指标计算结果
         self._ranges = {}  # 变量范围值 [min, max, current]
-        # self._netRange = []  # 净增长建筑面积范围
-        # self._demoRange = []  # 拆除建筑面积范围
-        # self._accRange = []  # 地铁覆盖建筑面积范围
-        # self._pubServiceRange = []  # 公共服务水平
 
     @pyqtProperty(str)
     def name(self):
@@ -574,22 +569,6 @@ class ModelResult():
     def layers(self, v):
         self._layers = v
 
-    # @property
-    # def gridPath(self):
-    #     return self._gridPath
-    #
-    # @gridPath.setter
-    # def gridPath(self, v):
-    #     self._gridPath = v
-    #
-    # @property
-    # def landPath(self):
-    #     return self._landPath
-    #
-    # @landPath.setter
-    # def landPath(self, v):
-    #     self._landPath = v
-
     @property
     def indicators(self):
         return self._indicators
@@ -606,27 +585,4 @@ class ModelResult():
     def ranges(self, v):
         self._ranges = v
 
-    # @property
-    # def demoRange(self):
-    #     return self._demoRange
-    #
-    # @demoRange.setter
-    # def demoRange(self, v):
-    #     self._demoRange = v
-    #
-    # @property
-    # def _accRange(self):
-    #     return self._accRange
-    #
-    # @_accRange.setter
-    # def _accRange(self, v):
-    #     self.__accRange = v
-    #
-    # @property
-    # def publicServiceRange(self):
-    #     return self._pubServiceRange
-    #
-    # @publicServiceRange.setter
-    # def publicServiceRange(self, v):
-    #     self._pubServiceRange = v
 

@@ -8,16 +8,17 @@
 </style>
 
 <body>
-<div id="container_radar" style="height: 50%"></div>
-<div id="container_hist" style="height: 50%"></div>
+<div id="container_radar" style="height: 49%"></div>
+<div style="height:2px;width:100%;border-top:1px solid #ccc;float:left;margin-top:-5px;"></div>
+<div id="container_hist" style="height: 51%"></div>
 <script type="text/javascript" src="echarts.min.js"></script>
 <script type="text/javascript">
     var top_chart = echarts.init(document.getElementById("container_radar"));
     var bottom_chart = echarts.init(document.getElementById("container_hist"));
 
     var app = {};
-    option = null;
-    option = {
+    top_option = null;
+    top_option = {
         color: ['#67F9D8', '#FFE434', '#56A3F1', '#FF917C'],
         title: {
             text: '评价指标',
@@ -79,42 +80,85 @@
                         }
                     }
                 ]
-                // data: [
-                //     {
-                //         value: [100, 8, 0.4, -80, 2000],
-                //         name: 'Data A'
-                //     },
-                //     {
-                //         value: [60, 5, 0.3, -100, 1500],
-                //         name: 'Data B',
-                //         areaStyle: {
-                //             color: 'rgba(255, 228, 52, 0.6)'
-                //         }
-                //     }
-                // ]
             }
         ]
     };
 
-    function showChart(indicator, values){
+    bottom_option = null;
+    bottom_option = {
+        color: ['#67F9D8', '#FFE434', '#56A3F1', '#FF917C'],
+        title: {
+            text: '地块指标值的统计分布',
+            textAlign: 'center',
+            left: '50%'
+        },
+        xAxis: {
+            type: 'value',
+            min: 0,
+            max: 80,
+            splitNumber: 8,
+            axisLabel: {
+                hideOverlap: true
+            }
+        },
+        yAxis: {
+            type: 'value'
+        },
+        dataZoom: [
+            {
+                type: 'inside'
+            },
+            {
+                type: 'slider',
+                showDataShadow: true,
+                // handleIcon:
+                //     'path://M10.7,11.9v-1.3H9.3v1.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4v1.3h1.3v-1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z M13.3,24.4H6.7V23h6.6V24.4z M13.3,19.6H6.7v-1.4h6.6V19.6z',
+                // handleSize: '80%'
+            }
+        ],
+        series: [
+            {
+                name: '直方图',
+                type: 'bar',
+                stack: 'total',
+                data: []
+            },
+            {
+                name: '核密度',
+                type: 'line',
+                smooth: true,
+                showSymbol: false,
+                data: []
+            }
+        ]
+    }
+
+    function show_radar(indicator, values){
         top_chart.showLoading();
-        if (option && typeof option === "object") {
-            // alert(indicator)
-            // option["series"][0]["data"][0]["value"] = var0;
-            // option["series"][0]["data"][1]["value"] = var1;
-            // option["series"][0]["data"][2]["value"] = var2;
-            // option["series"][0]["data"][3]["value"] = var3;
-            // option["series"][0]["data"][4]["value"] = var4;
-            // option["series"][0]["data"][5]["value"] = var5;
-            option["radar"][0]["indicator"] = indicator
-            option["series"][0]["data"][0]["value"] =  values;
-            top_chart.setOption(option, true);
+        if (top_option && typeof top_option === "object") {
+            top_option["radar"][0]["indicator"] = indicator
+            top_option["series"][0]["data"][0]["value"] = values;
+            top_chart.setOption(top_option, true);
             top_chart.hideLoading();
             return null
         }
     }
 
-    showChart(
+    function show_hist(values_hist, values_density, range){
+        bottom_chart.showLoading();
+        if (bottom_option && typeof bottom_option === "object") {
+            bottom_option["series"][0]["data"] = values_hist;
+            bottom_option["series"][1]["data"] = values_density;
+            bottom_option["xAxis"]["min"] = range[0];
+            bottom_option["xAxis"]["max"] = range[1];
+            bottom_option["xAxis"]["splitNumber"] = range[2];
+            bottom_chart.setOption(bottom_option, true);
+            bottom_chart.hideLoading();
+            return null
+        }
+    }
+
+    show_radar(
         [
             { text: 'a' },
             { text: 'Indicator2' },
@@ -124,9 +168,19 @@
         ],
         [1500,300,500,2000,0.5])
 
+    show_hist(
+        [[5,20], [15,52], [25,200], [35,334], [45,390], [55,330], [65,220]],
+        [34, 30, 28, 45, 63, 102, 203, 234, 230, 165, 120, 62],
+        [0, 80, 8]
+    )
+
     window.onresize = function(){
         top_chart.resize();
         bottom_chart.resize();
+    };
+    window.onunload = function () {
+        top_chart.dispose();
+        bottom_chart.dispose();
     };
 </script>
 </body>

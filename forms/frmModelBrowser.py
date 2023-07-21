@@ -14,8 +14,15 @@ from UICore.Gv import SplitterState, Dock, model_layer_meta, model_config_params
     get_main_path
 from UICore.SCIPCal import ModelResult
 import icons_rc
+from UICore.mSqlite import Sqlite
+import pandas as pd
+import numpy as np
+
+from UICore.histogram import ticks, best_bin, nice, kernelDensityEstimator, kde_bandwidth
 
 Slot = pyqtSlot
+
+test_pd = None
 
 class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
     def __init__(self, parent=None):
@@ -42,7 +49,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.splitter_preview.setProperty("Dock", Dock.right)
         self.splitter_preview.setProperty("WidgetToHide", self.chart_webView)
         self.splitter_preview.setProperty("ExpandParentForm", False)
-        self.splitter_preview.setSizes([600, self.splitter.width() - 590])
+        self.splitter_preview.setSizes([500, self.splitter.width() - 490])
         self.resize(self.splitter_preview.width(), self.splitter_preview.height())
         self.splitter_preview.setupUi()
 
@@ -57,10 +64,25 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
 
         self.chart_webView.loadFinished.connect(self.chart_webView_loadFinished)
 
+        self.bFirst = True
+        self.get_field_names()
         self.clear()
 
+    def get_field_names(self):
+        self.name_area = model_layer_meta.name_potentialLand_area.lower()
+        self.name_type = model_layer_meta.name_type.lower()
+        self.name_landid = model_layer_meta.name_landid.lower()
+        self.name_unitid = model_layer_meta.name_unitid.lower()
+        self.name_r_po = model_layer_meta.name_r_po.lower()
+        self.name_CurBldAdj = model_layer_meta.name_CurBldAdj.lower()
+        self.name_CurRBld = model_layer_meta.name_CurRBld.lower()
+        self.name_MetroIf = model_layer_meta.name_MetroIF.lower()
+        self.name_PublicService = model_layer_meta.name_PublicService.lower()
+        self.name_layer_PotentialLand = model_layer_meta.name_layer_PotentialLand
+        self.name_layer_match = model_layer_meta.name_layer_match
+        self.name_potentialLand_area = model_layer_meta.name_potentialLand_area
+
     def updateForm(self, models=None):
-        bFirst = True
         for model in models:
             if isinstance(model, ModelResult):
                 layItem = QTreeWidgetItem([model.name])
@@ -69,11 +91,76 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
 
                 self.tree_model.addTopLevelItem(layItem)
 
-                if bFirst:
+                if self.bFirst:
                     self.tree_model.setCurrentItem(layItem)
-                    bFirst = False
+                    self.bFirst = False
 
-        self.tree_model.collapseAll()
+        if self.bFirst:
+            self.tree_model.collapseAll()
+
+    # 绘制直方图
+    def draw_histogram(self, df):
+        #  net increase
+        # df_filter = (df[self.name_r_po] - df[self.name_CurRBld]).map(
+        #     lambda x: 0 if x < 0 else x
+        # )
+        # df_filter = df_filter[df_filter > 0]
+
+        #  demolish
+        # df_filter = df[self.name_CurRBld]
+        # df_filter = df_filter[df_filter > 0]
+
+        #  acc
+
+        #  pubervice
+        df_filter = df[self.name_PublicService]
+
+        transfer_hist, transfer_density, [start, stop, count] = self.hist_transfer_data(df_filter)
+
+        jscode = "show_hist({}, {}, {});".format(transfer_hist, transfer_density, [start, stop, count])
+        self.chart_webView.page().mainFrame().evaluateJavaScript(jscode)
+
+    def hist_transfer_data(self, df):
+        count = best_bin(df)
+        # count = 8
+        [start, stop] = nice(min(df), max(df), count)
+        interval = ticks(start, stop, count)
+        bandwidth = np.diff(interval)
+        x0 = (interval[0] + interval[1]) / 2
+        bandwidth = np.insert(bandwidth, 0, x0)
+        x = np.cumsum(bandwidth)
+        hist, bins = np.histogram(df, bins=interval, density=False)
+        hist = hist / df.count()
+
+        # kde_bw = kde_bandwidth(df_net)
+        density, kde_bw = kernelDensityEstimator(df.tolist(), interval)
+        # density = kernelDensityEstimator(df_net.tolist(), interval, False)
+        density = list(map(lambda x: x * kde_bw, density))
+
+        transfer_hist = [[x[i], hist[i]] for i in range(len(x) - 1)]
+        transfer_density = [[x[i], density[i]] for i in range(len(x) - 1)]
+
+        print(transfer_hist)
+
+        return transfer_hist, transfer_density, [start, stop, count]
+
+    #  绘制雷达图
+    def draw_radar(self, model):
+        ranges = model.ranges
+
+        indicator = []
+        values = []
+        for k, v in ranges.items():
+            dict = {
+                'text': indicator_translate_dict[k],
+                'max': round(v[1], 2),
+                'min': round(v[0], 2)
+            }
+            values.append(round(v[2], 2))
+            indicator.append(dict)
+
+        jscode = "show_radar({}, {});".format(indicator, values)
+        self.chart_webView.page().mainFrame().evaluateJavaScript(jscode)
 
     @Slot(QTreeWidgetItem, QTreeWidgetItem)
     def tree_model_currentItemChanged(self, cur_item: QTreeWidgetItem, previous_item: QTreeWidgetItem):
@@ -110,23 +197,8 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
     def chart_webView_loadFinished(self, bflag: bool):
         if bflag:
             model = self.current_model
-            ranges = model.ranges
-
-            indicator = []
-            values = []
-            for k, v in ranges.items():
-                dict = {}
-                dict['text'] = indicator_translate_dict[k]
-
-                dict['max'] = round(v[1], 2)
-                dict['min'] = round(v[0], 2)
-                values.append(round(v[2], 2))
-                indicator.append(dict)
-
-            print(str(indicator))
-
-            jscode = "showChart({}, {});".format(indicator, values)
-            self.chart_webView.page().mainFrame().evaluateJavaScript(jscode)
+            self.draw_radar(model)
+            self.draw_histogram(test_pd)
 
     def clear(self):
         self.tree_model.clear()
@@ -135,6 +207,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         # self.tree_model.setHeader()
         # self.tree_model.setHeaderHidden(True)
         self.tree_model.sortByColumn(-1, Qt.AscendingOrder)
+
 
 if __name__ == '__main__':
     # app = QApplication(sys.argv)
@@ -152,6 +225,13 @@ if __name__ == '__main__':
     model_res2.dataSource = r'D:\空间模拟\SpatialSimulation\res\model_files\model_2023-07-17-20-07-38.sqlite'
     model_res2.layers = {'居住专规潜力用地_0621_s2': '居住专规潜力用地_0621_s2', '标准单元_0621_s2': '标准单元_0621_s2'}
     model_res2.ranges = {'Total net increase R building': [0, 4925353.334999999, 2348936.6530000074], 'Total demolish building area': [-18825600.5823172, 0, -2949169.581999993], 'Total Metro cover buidling area': [0, 10739080.282, 1493.8861800817494], 'Total cover public service area': [0, 3896.1128, 1789.9464999999973], 'BI': [0, 6.633899399999999, 0.7677029]}
+
+    sqlite_db = Sqlite(r"D:\空间模拟\SpatialSimulation\tmp\2023-07-17-14-56-59.sqlite")
+    exec_str = '''
+        select * from 居住专规潜力用地_0621_s2 where io=1
+    '''
+    r = sqlite_db.execute_dict(exec_str)
+    test_pd = pd.DataFrame.from_dict(r)
 
     window.updateForm([model_res1, model_res2])
     window.setWindowFlags(Qt.Window)
