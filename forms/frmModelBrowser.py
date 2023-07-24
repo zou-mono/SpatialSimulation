@@ -1,3 +1,4 @@
+import json
 import os
 from random import randint
 
@@ -22,7 +23,8 @@ from UICore.histogram import ticks, best_bin, nice, kernelDensityEstimator, kde_
 
 Slot = pyqtSlot
 
-test_pd = None
+test_land = None
+test_grid = None
 
 class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
     def __init__(self, parent=None):
@@ -81,6 +83,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.name_layer_PotentialLand = model_layer_meta.name_layer_PotentialLand
         self.name_layer_match = model_layer_meta.name_layer_match
         self.name_potentialLand_area = model_layer_meta.name_potentialLand_area
+        self.name_plabi = model_layer_meta.name_plabi.lower()
 
     def updateForm(self, models=None):
         for model in models:
@@ -99,26 +102,61 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
             self.tree_model.collapseAll()
 
     # 绘制直方图
-    def draw_histogram(self, df):
-        #  net increase
-        # df_filter = (df[self.name_r_po] - df[self.name_CurRBld]).map(
-        #     lambda x: 0 if x < 0 else x
-        # )
-        # df_filter = df_filter[df_filter > 0]
+    def draw_histogram(self, model):
+        transfer_dict = {}
 
-        #  demolish
-        # df_filter = df[self.name_CurRBld]
-        # df_filter = df_filter[df_filter > 0]
+        sqlite_db = Sqlite(model.dataSource)
+        exec_str = '''
+            select * from {} where {}=1
+        '''.format(model.layers['land'], model_layer_meta.name_io)
+        df_land = pd.DataFrame.from_dict(sqlite_db.execute_dict(exec_str))
 
-        #  acc
+        exec_str = '''
+            select * from 标准单元_0621_s2
+        '''
+        df_grid = pd.DataFrame.from_dict(sqlite_db.execute_dict(exec_str))
+
+        # net increase
+        df_filter = (df_land[self.name_r_po] - df_land[self.name_CurRBld]).map(
+            lambda x: 0 if x < 0 else x
+        )
+        df_filter = df_filter[df_filter > 0]
+        transfer_dict = self.transfer_to_dict(transfer_dict, df_filter, model_config_params.Indicator_net)
+
+        # demolish
+        df_filter = df_land[self.name_CurRBld]
+        df_filter = df_filter[df_filter > 0]
+        transfer_dict = self.transfer_to_dict(transfer_dict, df_filter, model_config_params.Indicator_demo)
+
+        # acc
+        df_filter = df_land.query('{}==1'.format(self.name_MetroIf))[
+            "{}".format(self.name_r_po)]
+        df_filter = df_filter[df_filter > 0]
+        transfer_dict = self.transfer_to_dict(transfer_dict, df_filter, model_config_params.Indicator_acc)
 
         #  pubervice
-        df_filter = df[self.name_PublicService]
+        df_filter = df_land[self.name_PublicService]
+        df_filter = df_filter[df_filter > 0]
+        transfer_dict = self.transfer_to_dict(transfer_dict, df_filter, model_config_params.Indicator_pubService)
 
-        transfer_hist, transfer_density, [start, stop, count] = self.hist_transfer_data(df_filter)
+        #  BI
+        df_filter = df_grid[self.name_plabi]
+        df_filter = df_filter[df_filter > 0]
+        transfer_dict = self.transfer_to_dict(transfer_dict, df_filter, model_config_params.Indicator_bi)
 
-        jscode = "show_hist({}, {}, {});".format(transfer_hist, transfer_density, [start, stop, count])
+        transfer_data = json.dumps(transfer_dict, ensure_ascii=False)
+        jscode = "get_hist_data({});".format(transfer_data)
         self.chart_webView.page().mainFrame().evaluateJavaScript(jscode)
+
+    def transfer_to_dict(self, transfer_dict, df_filter, key_):
+        transfer_hist, transfer_density, [start, stop, count] = self.hist_transfer_data(df_filter)
+        transfer_dict[key_] = {
+            "indicator_name": indicator_translate_dict[key_],
+            "hist": transfer_hist,
+            "density": transfer_density,
+            "range": [start, stop, count]
+        }
+        return transfer_dict
 
     def hist_transfer_data(self, df):
         count = best_bin(df)
@@ -138,7 +176,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         density = list(map(lambda x: x * kde_bw, density))
 
         transfer_hist = [[x[i], hist[i]] for i in range(len(x) - 1)]
-        transfer_density = [[x[i], density[i]] for i in range(len(x) - 1)]
+        transfer_density = [[interval[i], density[i]] for i in range(len(interval) - 1)]
 
         print(transfer_hist)
 
@@ -174,9 +212,9 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
             return
 
         lyrs = []
-        for v in model.layers.values():
+        for k, v in model.layers.items():
             lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource,
-                                                          model.layers["{}".format(v)]), v, 'ogr')
+                                                          v, v, 'ogr'))
 
             if not lyr.isValid():
                 QMessageBox.information(self, '提示', '文件打开失败', QMessageBox.Ok)
@@ -198,7 +236,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         if bflag:
             model = self.current_model
             self.draw_radar(model)
-            self.draw_histogram(test_pd)
+            self.draw_histogram(model)
 
     def clear(self):
         self.tree_model.clear()
@@ -217,21 +255,27 @@ if __name__ == '__main__':
     model_res1 = ModelResult()
     model_res1.name = 'model_2023-07-17-20-07-38'
     model_res1.dataSource = r'D:\空间模拟\SpatialSimulation\res\model_files\model_2023-07-17-20-07-38.sqlite'
-    model_res1.layers = {'居住专规潜力用地_0621_s2': '居住专规潜力用地_0621_s2', '标准单元_0621_s2': '标准单元_0621_s2'}
+    model_res1.layers = {'land': '居住专规潜力用地_0621_s2', 'grid': '标准单元_0621_s2'}
     model_res1.ranges = {'Total net increase R building': [0, 4925353.334999999, 2348936.6530000074], 'Total demolish building area': [-18825600.5823172, 0, -2949169.581999993], 'Total Metro cover buidling area': [0, 10739080.282, 1493.8861800817494], 'Total cover public service area': [0, 3896.1128, 1789.9464999999973], 'BI': [0, 6.633899399999999, 0.7677029]}
 
     model_res2 = ModelResult()
     model_res2.name = '2023-07-17-20-42-03'
     model_res2.dataSource = r'D:\空间模拟\SpatialSimulation\res\model_files\model_2023-07-17-20-07-38.sqlite'
-    model_res2.layers = {'居住专规潜力用地_0621_s2': '居住专规潜力用地_0621_s2', '标准单元_0621_s2': '标准单元_0621_s2'}
+    model_res2.layers = {'land': '居住专规潜力用地_0621_s2', 'grid': '标准单元_0621_s2'}
     model_res2.ranges = {'Total net increase R building': [0, 4925353.334999999, 2348936.6530000074], 'Total demolish building area': [-18825600.5823172, 0, -2949169.581999993], 'Total Metro cover buidling area': [0, 10739080.282, 1493.8861800817494], 'Total cover public service area': [0, 3896.1128, 1789.9464999999973], 'BI': [0, 6.633899399999999, 0.7677029]}
 
-    sqlite_db = Sqlite(r"D:\空间模拟\SpatialSimulation\tmp\2023-07-17-14-56-59.sqlite")
-    exec_str = '''
-        select * from 居住专规潜力用地_0621_s2 where io=1
-    '''
-    r = sqlite_db.execute_dict(exec_str)
-    test_pd = pd.DataFrame.from_dict(r)
+    # sqlite_db = Sqlite(r"D:\空间模拟\SpatialSimulation\tmp\2023-07-17-14-56-59.sqlite")
+    # exec_str = '''
+    #     select * from 居住专规潜力用地_0621_s2 where io=1
+    # '''
+    # r = sqlite_db.execute_dict(exec_str)
+    # test_land = pd.DataFrame.from_dict(r)
+    #
+    # exec_str = '''
+    #     select * from 标准单元_0621_s2
+    # '''
+    # r = sqlite_db.execute_dict(exec_str)
+    # test_grid = pd.DataFrame.from_dict(r)
 
     window.updateForm([model_res1, model_res2])
     window.setWindowFlags(Qt.Window)

@@ -40,6 +40,8 @@ class Model:
         self.name_layer_PotentialLand = model_layer_meta.name_layer_PotentialLand
         self.name_layer_match = model_layer_meta.name_layer_match
         self.name_potentialLand_area = model_layer_meta.name_potentialLand_area
+        self.name_plabi = model_layer_meta.name_plabi.lower()
+        self.name_io = model_layer_meta.name_io.lower()
 
     def __init__(self, model_name, db_name, df_constraint, logClass=None):
         self.db_name = db_name
@@ -374,18 +376,18 @@ class Model:
             for j in self.UnitIDs:
                 Unit_BI.append([j, 1 / (sols[bnum][self.x_Unit_PlaBI[j]])])
 
-            df_Land_IO=pd.DataFrame(Land_IO, columns=[model_layer_meta.name_landid, model_layer_meta.name_io,
+            df_Land_IO=pd.DataFrame(Land_IO, columns=[model_layer_meta.name_landid, self.name_io,
                                                       model_layer_meta.name_r_po])
-            df_Unit_BI=pd.DataFrame(Unit_BI, columns=[model_layer_meta.name_unitid, model_layer_meta.name_plabi])
+            df_Unit_BI=pd.DataFrame(Unit_BI, columns=[model_layer_meta.name_unitid, self.name_plabi])
             df_Indicator_value=pd.DataFrame(Indicator_value, columns=["Indicator", "value"])
 
             #  join result
             self.join_result_to_origin_layer(df_Land_IO, model_layer_meta.name_layer_PotentialLand,
-                                             model_layer_meta.name_result_io,
-                                             model_layer_meta.name_landid, model_layer_meta.name_io, "Integer", 1)
+                                             self.name_io,
+                                             model_layer_meta.name_landid, self.name_io, "Integer", 1)
             self.join_result_to_origin_layer(df_Unit_BI, model_layer_meta.name_layer_Grid,
-                                             model_layer_meta.name_result_plabi,
-                                             model_layer_meta.name_unitid, model_layer_meta.name_plabi, "Real", -1)
+                                             self.name_plabi,
+                                             model_layer_meta.name_unitid, self.name_plabi, "Real", -1)
 
             if not os.path.exists(model_config_params.result_folder):
                 os.mkdir(model_config_params.result_folder)
@@ -418,8 +420,8 @@ class Model:
             res.name = self.model_name
             res.dataSource = ds_path
             res.layers = {
-                model_layer_meta.name_layer_PotentialLand: model_layer_meta.name_layer_PotentialLand,
-                model_layer_meta.name_layer_Grid: model_layer_meta.name_layer_Grid
+                "land": model_layer_meta.name_layer_PotentialLand,
+                "grid": model_layer_meta.name_layer_Grid
             }
 
             #  net increase变量的极值范围

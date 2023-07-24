@@ -1,55 +1,118 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8" http-equiv="Content-Type" Content="text/html">
+    <link rel="stylesheet" type="text/css" href="chartStyle.css">
 </head>
 <style type="text/css">
-    body, html { height:100%; padding:0; margin:0; overflow:hidden}
+    body,
+    html {
+        height: 100%;
+        padding: 0;
+        margin: 0;
+        overflow: hidden
+    }
 </style>
 
 <body>
-<div id="container_radar" style="height: 49%"></div>
-<div style="height:2px;width:100%;border-top:1px solid #ccc;float:left;margin-top:-5px;"></div>
-<div id="container_hist" style="height: 51%"></div>
-<script type="text/javascript" src="echarts.min.js"></script>
-<script type="text/javascript">
-    var top_chart = echarts.init(document.getElementById("container_radar"));
-    var bottom_chart = echarts.init(document.getElementById("container_hist"));
+    <div id="top_container" style="position: relative; height: 50%">
+        <div id="top_title" style="text-align: center">
+            <label class="chart_title">模型指标评价</label>
+        </div>
+        <div id="container_radar" style="height: 90%"></div>
+    </div>
 
-    var app = {};
-    top_option = null;
-    top_option = {
-        color: ['#67F9D8', '#FFE434', '#56A3F1', '#FF917C'],
-        title: {
-            text: '评价指标',
-            textAlign: 'center',
-            left: '50%'
-        },
-        tooltip: {
-            trigger: 'item',
-            position: "inside",
-            valueFormatter: (value) => {
-                if(value > 0 && value < 1)
-                    return value.toFixed(2)
-                else
-                    return value.toFixed(0)
-            }
-        },
-        legend: {
-            orient: 'vertical',
-            right: '10%',
-            top: "50%",
-            show: false
-        },
-        radar: [
-            {
-                indicator: [
-                    { text: 'Indicator1' },
-                    { text: 'Indicator2' },
-                    { text: 'Indicator3' },
-                    { text: 'Indicator4' },
-                    { text: 'Indicator5' }
-                ],
+    <div style="height:2px;width:100%;border-top:1px solid #ccc;float:left;margin-top:-5px;"></div>
+
+    <div id="bottom_container" style="height: 50%">
+        <table style="width:100%; height:100%">
+            <tbody>
+                <tr style="height: 0">
+                    <td id="bottom_title" class="chart_title" style="text-align: center; width:100%">
+                        <div>优化方案的指标分布</div>
+                    </td>
+                </tr>
+                <tr style="height: 0">
+                    <td>
+                        <div id="dropdown_indicator" style="visibility: hidden; margin-left: 5%; margin-top: 10px">
+                            <label class="dropdown_label" for="indicator">指标</label>
+                            <select id="indicator" class="minimal"></select>
+                        </div>
+                    </td>
+                </tr>
+                <tr style="height:100%">
+                    <td>
+                        <div id="container_hist" style="height:100%"></div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+<!--    <div id="bottom_container" style="display: flex; flex-direction: column; height: 50%">-->
+<!--        <div id="bottom_title" style="text-align: center">-->
+<!--            <label class="chart_title">优化方案的指标分布</label>-->
+<!--        </div>-->
+
+<!--        <div style="display: flex; justify-content: space-between">-->
+<!--            <div id="dropdown_indicator" style="visibility: hidden; margin-left: 10%">-->
+<!--                <label class="dropdown_label" for="indicator">指标</label>-->
+<!--                <select id="indicator" class="minimal"></select>-->
+<!--            </div>-->
+<!--            &lt;!&ndash;        <div id="switch_chart_type" style="margin-right: 10%;">&ndash;&gt;-->
+<!--            &lt;!&ndash;            <label class="form-switch">&ndash;&gt;-->
+<!--            &lt;!&ndash;                <input type="checkbox">&ndash;&gt;-->
+<!--            &lt;!&ndash;                <i></i> label text </label>&ndash;&gt;-->
+<!--            &lt;!&ndash;        </div>&ndash;&gt;-->
+<!--        </div>-->
+
+<!--        <div id="container_hist" style="height: 100%"></div>-->
+<!--    </div>-->
+
+    <script type="text/javascript" src="echarts.min.js"></script>
+    <script type="text/javascript" src="jquery-3.7.0.min.js"></script>
+    <script type="text/javascript">
+        var top_chart = echarts.init($('#container_radar')[0]);
+        var bottom_chart = echarts.init($('#container_hist')[0]);
+
+        var app = {};
+        top_option = null;
+        top_option = {
+            color: ['#67F9D8', '#FFE434', '#56A3F1', '#FF917C'],
+            // title: {
+            //     text: '评价指标',
+            //     textAlign: 'center',
+            //     left: '50%'
+            // },
+            tooltip: {
+                trigger: 'item',
+                position: "inside",
+                valueFormatter: (value) => {
+                    if (value > 0 && value < 1)
+                        return value.toFixed(2)
+                    else
+                        return value.toFixed(0)
+                }
+            },
+            legend: {
+                orient: 'vertical',
+                right: '10%',
+                top: "50%",
+                show: false
+            },
+            radar: [{
+                indicator: [{
+                    text: 'Indicator1'
+                }, {
+                    text: 'Indicator2'
+                }, {
+                    text: 'Indicator3'
+                }, {
+                    text: 'Indicator4'
+                }, {
+                    text: 'Indicator5'
+                }],
                 // center: ['75%', '50%'],
                 radius: 120,
                 axisName: {
@@ -58,10 +121,8 @@
                     borderRadius: 3,
                     padding: [3, 5]
                 }
-            }
-        ],
-        series: [
-            {
+            }],
+            series: [{
                 type: 'radar',
                 // tooltip: {
                 //     trigger: 'item'
@@ -71,117 +132,152 @@
                         width: 4
                     }
                 },
-                data: [
-                    {
-                        // value: [100, 8, 0.4, -80, 2000],
-                        name: '评价指标',
-                        areaStyle: {
-                            color: 'rgba(255, 228, 52, 0.6)'
-                        }
+                data: [{
+                    name: '评价指标',
+                    areaStyle: {
+                        color: 'rgba(255, 228, 52, 0.6)'
                     }
-                ]
-            }
-        ]
-    };
+                }]
+            }]
+        };
 
-    bottom_option = null;
-    bottom_option = {
-        color: ['#67F9D8', '#FFE434', '#56A3F1', '#FF917C'],
-        title: {
-            text: '地块指标值的统计分布',
-            textAlign: 'center',
-            left: '50%'
-        },
-        xAxis: {
-            type: 'value',
-            min: 0,
-            max: 80,
-            splitNumber: 8,
-            axisLabel: {
-                hideOverlap: true
-            }
-        },
-        yAxis: {
-            type: 'value'
-        },
-        dataZoom: [
-            {
-                type: 'inside'
+        bottom_option = null;
+        bottom_option = {
+            color: ['#67F9D8', '#FFE434', '#56A3F1', '#FF917C'],
+            title: {
+                text: '地块指标值的统计分布',
+                textAlign: 'center',
+                left: '50%',
+                top: "0%",
+                show: false
             },
-            {
+            grid: {
+                top: '5%'
+            },
+            xAxis: {
+                type: 'value',
+                min: 0,
+                max: 80,
+                splitNumber: 8,
+                axisLabel: {
+                    hideOverlap: true // 坐标轴标签不叠置
+                }
+            },
+            yAxis: {
+                type: 'value'
+            },
+            dataZoom: [{
+                type: 'inside'
+            }, {
                 type: 'slider',
                 showDataShadow: true,
-                // handleIcon:
-                //     'path://M10.7,11.9v-1.3H9.3v1.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4v1.3h1.3v-1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z M13.3,24.4H6.7V23h6.6V24.4z M13.3,19.6H6.7v-1.4h6.6V19.6z',
-                // handleSize: '80%'
-            }
-        ],
-        series: [
-            {
+            }],
+            series: [{
                 name: '直方图',
                 type: 'bar',
-                stack: 'total',
+                // stack: 'total',
+                clip: true,
                 data: []
-            },
-            {
+            }, {
                 name: '核密度',
                 type: 'line',
                 smooth: true,
                 showSymbol: false,
                 data: []
+            }]
+        }
+
+        function show_radar(indicator, values) {
+            top_chart.showLoading();
+            if (top_option && typeof top_option === "object") {
+                top_option["radar"][0]["indicator"] = indicator
+                top_option["series"][0]["data"][0]["value"] = values;
+                top_chart.setOption(top_option, true);
+                top_chart.hideLoading();
+                return null
             }
-        ]
-    }
-
-    function show_radar(indicator, values){
-        top_chart.showLoading();
-        if (top_option && typeof top_option === "object") {
-            top_option["radar"][0]["indicator"] = indicator
-            top_option["series"][0]["data"][0]["value"] = values;
-            top_chart.setOption(top_option, true);
-            top_chart.hideLoading();
-            return null
         }
-    }
 
-    function show_hist(values_hist, values_density, range){
-        bottom_chart.showLoading();
-        if (bottom_option && typeof bottom_option === "object") {
-            bottom_option["series"][0]["data"] = values_hist;
-            bottom_option["series"][1]["data"] = values_density;
-            bottom_option["xAxis"]["min"] = range[0];
-            bottom_option["xAxis"]["max"] = range[1];
-            bottom_option["xAxis"]["splitNumber"] = range[2];
-            bottom_chart.setOption(bottom_option, true);
-            bottom_chart.hideLoading();
-            return null
+        var hist_data;
+
+        function get_hist_data(data) {
+            // bottom_chart.showLoading();
+            if (bottom_option && typeof bottom_option === "object") {
+                dict = JSON.parse(data)
+                if(Object.keys(dict).length > 0){
+                    $('#dropdown_indicator').css("visibility", "visible");
+                }
+
+                let i = 0;
+                for (let key in dict) {
+                    $('#indicator').append($("<option/>", {
+                        value: key,
+                        text: dict[key]['indicator_name']
+                    }));
+                }
+
+                hist_data = dict
+
+                $('#indicator').trigger('change')
+
+                // bottom_chart.setOption(bottom_option, true);
+                // bottom_chart.hideLoading();
+            }
         }
-    }
 
-    show_radar(
-        [
-            { text: 'a' },
-            { text: 'Indicator2' },
-            { text: 'c' },
-            { text: 'Indicator4' },
-            { text: 'Indicator5' }
-        ],
-        [1500,300,500,2000,0.5])
+        $('#indicator').change(function(){
+            key = $(this).val()
+            value = hist_data[key]
+            // alert(value)
+            show_hist(value['hist'], value['density'], value['range'])
+        })
 
-    show_hist(
-        [[5,20], [15,52], [25,200], [35,334], [45,390], [55,330], [65,220]],
-        [34, 30, 28, 45, 63, 102, 203, 234, 230, 165, 120, 62],
-        [0, 80, 8]
-    )
+        function show_hist(values_hist, values_density, range) {
+            bottom_chart.showLoading();
+            if (bottom_option && typeof bottom_option === "object") {
+                bottom_option["series"][0]["data"] = values_hist;
+                bottom_option["series"][1]["data"] = values_density;
+                bottom_option["xAxis"]["min"] = range[0];
+                bottom_option["xAxis"]["max"] = range[1];
+                bottom_option["xAxis"]["splitNumber"] = range[2];
+                bottom_chart.setOption(bottom_option, true);
+                bottom_chart.hideLoading();
+                return null
+            }
+        }
 
-    window.onresize = function(){
-        top_chart.resize();
-        bottom_chart.resize();
-    };
-    window.onunload = function () {
-        top_chart.dispose();
-        bottom_chart.dispose();
-    };
-</script>
+        show_radar(
+            [{
+                text: 'a'
+            }, {
+                text: 'Indicator2'
+            }, {
+                text: 'c'
+            }, {
+                text: 'Indicator4'
+            }, {
+                text: 'Indicator5'
+            }], [1500, 300, 500, 2000, 0.5])
+
+        get_hist_data(
+            "{\"Total net increase R building\": {\"indicator_name\": \"新增居住建筑量\", \"hist\": [[50000.0, 0.7292418772563177], [150000.0, 0.19494584837545126], [250000.0, 0.04332129963898917], [350000.0, 0.018050541516245487], [450000.0, 0.0], [550000.0, 0.0036101083032490976], [650000.0, 0.0], [750000.0, 0.0], [850000.0, 0.0036101083032490976], [950000.0, 0.0], [1050000.0, 0.0], [1150000.0, 0.0], [1250000.0, 0.0], [1350000.0, 0.0036101083032490976], [1450000.0, 0.0], [1550000.0, 0.0036101083032490976]], \"density\": [[0.0, 0.13281635515521595], [100000.0, 0.0837523676794477], [200000.0, 0.027364773069417626], [300000.0, 0.009640577972911422], [400000.0, 0.0], [500000.0, 0.0], [600000.0, 0.0024834518187710364], [700000.0, 0.0], [800000.0, 0.0], [900000.0, 0.0], [1000000.0, 0.0], [1100000.0, 0.0], [1200000.0, 0.0], [1300000.0, 0.002682170028089091], [1400000.0, 0.0], [1500000.0, 0.0]], \"range\": [0.0, 1600000.0, 20]}, \"Total demolish building area\": {\"indicator_name\": \"拆除居住建筑量\", \"hist\": [[10000.0, 0.7535714285714286], [30000.0, 0.11428571428571428], [50000.0, 0.039285714285714285], [70000.0, 0.03214285714285714], [90000.0, 0.0035714285714285713], [110000.0, 0.017857142857142856], [130000.0, 0.007142857142857143], [150000.0, 0.007142857142857143], [170000.0, 0.010714285714285714], [190000.0, 0.0035714285714285713], [210000.0, 0.0035714285714285713], [230000.0, 0.0], [250000.0, 0.0035714285714285713], [270000.0, 0.0035714285714285713]], \"density\": [[0.0, 0.10428836681782855], [20000.0, 0.03888802561682278], [40000.0, 0.012934514677069837], [60000.0, 0.009985324112761772], [80000.0, 0.0], [100000.0, 0.0], [120000.0, 0.004325571997923605], [140000.0, 0.002048978156874844], [160000.0, 0.0], [180000.0, 0.0], [200000.0, 0.0], [220000.0, 0.0], [240000.0, 0.0], [260000.0, 0.001497929733825677]], \"range\": [0.0, 280000.0, 14]}, \"Total Metro cover buidling area\": {\"indicator_name\": \"交通可达性\", \"hist\": [[25000.0, 0.6281690140845071], [75000.0, 0.17746478873239438], [125000.0, 0.09295774647887324], [175000.0, 0.03943661971830986], [225000.0, 0.022535211267605635], [275000.0, 0.016901408450704224], [325000.0, 0.005633802816901409], [375000.0, 0.0028169014084507044], [425000.0, 0.0028169014084507044], [475000.0, 0.0], [525000.0, 0.0], [575000.0, 0.0], [625000.0, 0.0028169014084507044], [675000.0, 0.0], [725000.0, 0.0], [775000.0, 0.0], [825000.0, 0.0], [875000.0, 0.0], [925000.0, 0.0028169014084507044], [975000.0, 0.0], [1025000.0, 0.0], [1075000.0, 0.0], [1125000.0, 0.0], [1175000.0, 0.0], [1225000.0, 0.0], [1275000.0, 0.0], [1325000.0, 0.0], [1375000.0, 0.0], [1425000.0, 0.0], [1475000.0, 0.0028169014084507044], [1525000.0, 0.0028169014084507044]], \"density\": [[0.0, 0.2982195894614542], [50000.0, 0.1105895268864403], [100000.0, 0.05039510869174495], [150000.0, 0.026650634650935454], [200000.0, 0.011982345133695305], [250000.0, 0.006626415638758805], [300000.0, 0.0068030523584047846], [350000.0, 0.0], [400000.0, 0.0006953627304260577], [450000.0, 0.0], [500000.0, 0.0], [550000.0, 0.0], [600000.0, 0.0], [650000.0, 0.0], [700000.0, 0.0], [750000.0, 0.0], [800000.0, 0.0], [850000.0, 0.0], [900000.0, 0.0], [950000.0, 0.00014904186098361157], [1000000.0, 0.0], [1050000.0, 0.0], [1100000.0, 0.0], [1150000.0, 0.0], [1200000.0, 0.0], [1250000.0, 0.0], [1300000.0, 0.0], [1350000.0, 0.0], [1400000.0, 0.0], [1450000.0, 0.0006778028239245547], [1500000.0, 0.0]], \"range\": [0.0, 1550000.0, 23]}, \"Total cover public service area\": {\"indicator_name\": \"公共服务水平\", \"hist\": [[2.5, 0.3777292576419214], [7.5, 0.4170305676855895], [12.5, 0.10698689956331878], [17.5, 0.05895196506550218], [22.5, 0.015283842794759825], [27.5, 0.006550218340611353], [32.5, 0.004366812227074236], [37.5, 0.002183406113537118], [42.5, 0.0], [47.5, 0.0], [52.5, 0.0], [57.5, 0.0], [62.5, 0.0], [67.5, 0.0], [72.5, 0.0], [77.5, 0.0], [82.5, 0.0], [87.5, 0.004366812227074236], [92.5, 0.0], [97.5, 0.0], [102.5, 0.006550218340611353]], \"density\": [[0.0, 0.0066761534544144754], [5.0, 0.16872938095193102], [10.0, 0.030059390299466464], [15.0, 0.023422331528267084], [20.0, 0.009462174190022144], [25.0, 0.003135636504798724], [30.0, 0.0012707052811056613], [35.0, 0.0], [40.0, 0.0], [45.0, 0.0], [50.0, 0.0], [55.0, 0.0], [60.0, 0.0], [65.0, 0.0], [70.0, 0.0], [75.0, 0.0], [80.0, 0.0], [85.0, 0.0], [90.0, 0.0], [95.0, 0.0], [100.0, 0.0]], \"range\": [0.0, 105.0, 22]}, \"BI\": {\"indicator_name\": \"职住平衡\", \"hist\": [[2.5, 0.9090909090909091], [7.5, 0.045454545454545456], [12.5, 0.045454545454545456]], \"density\": [[0.0, 0.08301769918229028], [5.0, 0.0], [10.0, 0.0]], \"range\": [0.0, 15.0, 4]}}"
+        )
+
+        // show_hist(
+        //     [[5,20], [15,52], [25,200], [35,334], [45,390], [55,330], [65,220]],
+        //     [34, 30, 28, 45, 63, 102, 203, 234, 230, 165, 120, 62],
+        //     [0, 80, 8]
+        // )
+
+        window.onresize = function() {
+            top_chart.resize();
+            bottom_chart.resize();
+        };
+        window.onunload = function() {
+            top_chart.dispose();
+            bottom_chart.dispose();
+        };
+    </script>
 </body>
+
 </html>

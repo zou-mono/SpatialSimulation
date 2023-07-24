@@ -2,14 +2,14 @@
 <project version="4">
   <component name="PublishConfigData" remoteFilesAllowedToDisappearOnAutoupload="false">
     <serverData>
-      <paths name="mono@172.25.86.10:22">
+      <paths name="vagrant@127.0.0.1:2222">
         <serverdata>
           <mappings>
             <mapping local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
-      <paths name="vagrant@127.0.0.1:2222">
+      <paths name="vagrant@127.0.0.1:2222 (1)">
         <serverdata>
           <mappings>
             <mapping local="$PROJECT_DIR$" web="/" />
