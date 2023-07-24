@@ -145,7 +145,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         transfer_dict = self.transfer_to_dict(transfer_dict, df_filter, model_config_params.Indicator_bi)
 
         transfer_data = json.dumps(transfer_dict, ensure_ascii=False)
-        jscode = "get_hist_data({});".format(transfer_data)
+        jscode = "get_hist_data('{}');".format(transfer_data)
         self.chart_webView.page().mainFrame().evaluateJavaScript(jscode)
 
     def transfer_to_dict(self, transfer_dict, df_filter, key_):
@@ -160,6 +160,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
 
     def hist_transfer_data(self, df):
         count = best_bin(df)
+        if count < 10: count = 10
         # count = 8
         [start, stop] = nice(min(df), max(df), count)
         interval = ticks(start, stop, count)
