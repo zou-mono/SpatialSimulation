@@ -112,8 +112,8 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         df_land = pd.DataFrame.from_dict(sqlite_db.execute_dict(exec_str))
 
         exec_str = '''
-            select * from 标准单元_0621_s2
-        '''
+            select {} from {}
+        '''.format(model_layer_meta.name_plabi, model.layers['grid'])
         df_grid = pd.DataFrame.from_dict(sqlite_db.execute_dict(exec_str))
 
         # net increase
