@@ -47,7 +47,7 @@ class model_config_params():
 
 indicator_translate_dict = {
     model_config_params.Indicator_net: "新增居住建筑量",
-    model_config_params.Indicator_demo: "拆除居住建筑量",
+    model_config_params.Indicator_demo: "拆除总建筑量",
     model_config_params.Indicator_acc: "交通可达性",
     model_config_params.Indicator_pubService: "公共服务水平",
     model_config_params.Indicator_bi: "职住平衡"
