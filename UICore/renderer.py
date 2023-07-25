@@ -1,6 +1,8 @@
 from qgis._core import QgsSymbol, QgsRendererCategory, QgsCategorizedSymbolRenderer, QgsSingleSymbolRenderer, \
     QgsSimpleFillSymbolLayer, QgsFillSymbolLayer, Qgis
 
+from UICore.Gv import land_type_dict
+
 
 def categrorized_renderer(layer, index, render_field, color_ramp=None, spec_dict=None):
     unique_values = layer.uniqueValues(index)
@@ -18,7 +20,10 @@ def categrorized_renderer(layer, index, render_field, color_ramp=None, spec_dict
             symbol = QgsSymbol.defaultSymbol(layer.geometryType())
 
         # create renderer object
-        category = QgsRendererCategory(unique_value, symbol, str(unique_value))
+        if unique_value in land_type_dict:
+            category = QgsRendererCategory(unique_value, symbol, land_type_dict[unique_value])
+        else:
+            category = QgsRendererCategory(unique_value, symbol, str(unique_value))
         # entry for the list of category items
         categories.append(category)
 

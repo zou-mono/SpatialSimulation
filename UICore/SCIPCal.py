@@ -455,10 +455,6 @@ class Model:
             res.ranges[model_config_params.Indicator_bi] = [0, max_, cur_]
 
             return res
-            # df_Indicator_value.to_csv(os.path.join(model_config_params.result_folder, "Indicator_res.csv"), index=None)
-            # df_Land_IO.to_csv(os.path.join(model_config_params.result_folder, "Land_IO_res.csv"), index=None)
-            # df_Unit_BI.to_csv(os.path.join(model_config_params.result_folder, "Unit_BI_res.csv"), index=None)
-
         except Exception as e:
             log.error(traceback.format_exc())
             return None
