@@ -64,9 +64,9 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
                 # log.warning("读取模型预设参数文件失败，尝试重建文件...")
                 log.warning("模型预设参数文件未找到，系统将重新生成...")
                 bFlag = model.save_preset_params()
-                preset_params = model.load_preset_params()
 
             if bFlag:
+                preset_params = model.load_preset_params()
                 log.info("模型预制参数载入成功！", color=step_log_color)
                 w = df_indicator_Weight['Weight'].tolist()
                 # w = [v for v in vIndicatorWeight.values()]

@@ -1,5 +1,5 @@
 from qgis._core import QgsSymbol, QgsRendererCategory, QgsCategorizedSymbolRenderer, QgsSingleSymbolRenderer, \
-    QgsSimpleFillSymbolLayer, QgsFillSymbolLayer
+    QgsSimpleFillSymbolLayer, QgsFillSymbolLayer, Qgis
 
 
 def categrorized_renderer(layer, index, render_field, color_ramp=None, spec_dict=None):
@@ -8,13 +8,15 @@ def categrorized_renderer(layer, index, render_field, color_ramp=None, spec_dict
     # fill categories
     categories = []
     for unique_value in unique_values:
+        symbol = None
+
         # initialize the default symbol for this geometry type
         if spec_dict is not None:
             if unique_value in spec_dict:
                 symbol = spec_dict[unique_value]
         else:
             symbol = QgsSymbol.defaultSymbol(layer.geometryType())
-        #
+
         # create renderer object
         category = QgsRendererCategory(unique_value, symbol, str(unique_value))
         # entry for the list of category items
@@ -28,15 +30,16 @@ def categrorized_renderer(layer, index, render_field, color_ramp=None, spec_dict
         layer.triggerRepaint()
 
 
-def single_renderer(layer, type='simpleFill', color='cyan', outline_color='#000000', opacity=1, bReprint=True):
+def single_renderer(layer, type=Qgis.SymbolType.Fill, color='cyan', outline_color='#000000', opacity=1, bReprint=True):
     symbol = QgsSymbol.defaultSymbol(layer.geometryType())
     layer_style = {}
     layer_style['color'] = color  # '%d, %d, %d' % (150, 150, 150)
     layer_style['outline_color'] = outline_color  # '#232323'
 
     symbol_layer = None
-    if type == 'simpleFill':
+    if type == Qgis.SymbolType.Fill:
         symbol_layer = QgsSimpleFillSymbolLayer.create(layer_style)
+
     if symbol_layer is not None:
         symbol.changeSymbolLayer(0, symbol_layer)
     symbol.setOpacity(opacity)

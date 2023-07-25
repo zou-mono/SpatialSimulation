@@ -212,31 +212,10 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
 
         lyrs = []
         for k, v in model.layers.items():
-            lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource,
-                                                          v, v, 'ogr'))
+            lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource, v, v, 'ogr'))
 
             # 渲染grid和land图层
-            color_ramp = None
-            sty = get_qgis_style()
-            if sty is not None:
-                if k == 'land':
-                    spec_dict = {}
-                    fni, field_name = get_field_index_no_case(lyr, model_layer_meta.name_io)
-
-                    symbol = QgsSymbol.defaultSymbol(lyr.geometryType())
-                    symbol.setColor(QColor("#16dd37"))
-                    spec_dict[1] = symbol
-                    symbol = QgsSymbol.defaultSymbol(lyr.geometryType())
-                    symbol.setColor(QColor("#fdfffd"))
-                    spec_dict[0] = symbol
-
-                    # symbol = single_renderer(lyr, "#16dd37", "#16dd37")
-                    # spec_dict[1] = symbol
-                    # symbol = single_renderer(lyr, "#fdfffd", "#fdfffd")
-                    # spec_dict[0] = symbol
-                    categrorized_renderer(lyr, fni, field_name, None, spec_dict)
-                elif k == 'grid':
-                    single_renderer(lyr, color='%d, %d, %d' % (150, 150, 150), outline_color='#232323', opacity=0.1)
+            self.render_layers(k, lyr)
 
             if not lyr.isValid():
                 QMessageBox.information(self, '提示', '文件打开失败', QMessageBox.Ok)
@@ -253,6 +232,21 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.chart_webView.load(QUrl.fromLocalFile(os.path.abspath(chart_path)))
         # self.chart_webView.load(QUrl.fromLocalFile(os.path.abspath(r'../resources/radar_hist.html')))
 
+    def render_layers(self, k, lyr):
+        sty = get_qgis_style()
+        if sty is not None:
+            if k == 'land':
+                spec_dict = {}
+                fni, field_name = get_field_index_no_case(lyr, model_layer_meta.name_io)
+
+                symbol = QgsSymbol.defaultSymbol(lyr.geometryType())
+                symbol = single_renderer(lyr, symbol.type(), color="#16dd37", outline_color="#16dd37", bReprint=False)
+                spec_dict[1] = symbol
+                symbol = single_renderer(lyr, symbol.type(), color="#fdfffd", outline_color="#FF0000", bReprint=False)
+                spec_dict[0] = symbol
+                categrorized_renderer(lyr, fni, field_name, None, spec_dict)
+            elif k == 'grid':
+                single_renderer(lyr, color="#383838", outline_color='#232323', opacity=0.3)
 
     @Slot(bool)
     def chart_webView_loadFinished(self, bflag: bool):
