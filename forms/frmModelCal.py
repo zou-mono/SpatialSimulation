@@ -12,14 +12,17 @@ from PyQt5 import QtCore, QtGui
 import sys
 
 import pandas as pd
-from qgis._core import QgsVectorLayer, QgsProject, QgsVectorFileWriter
+from qgis._core import QgsVectorLayer, QgsProject, QgsVectorFileWriter, QgsStyle, QgsSymbol, QgsSimpleFillSymbolLayer, \
+    QgsSingleSymbolRenderer, QgsRendererCategory, QgsCategorizedSymbolRenderer
 
 from UI.UIModelCal import Ui_frmModelCal
 from UICore.SpModel import modelCal
+from UICore.common import get_qgis_style, get_field_index_no_case
 from UICore.log4p import Log
 from UICore.DataFactory import workspaceFactory
 from osgeo import ogr, gdal
-from UICore.Gv import DataType, model_config_params
+from UICore.Gv import DataType, model_config_params, model_layer_meta
+from UICore.renderer import categrorized_renderer, single_renderer
 from UICore.workerThread import ModelCalWorker
 
 from forms.frmModelBrowser import UI_ModelBrowser as frmModelBrowser
@@ -261,11 +264,15 @@ class frmModelCal(QWidget, Ui_frmModelCal):
     # 标准单元图层
     def addGridFile_clicked(self):
         try:
-            status, fileName = self.add_spatial_data("标准单元", self.tbl_GridField, Grid_neccessary_fields)
+            status, fileName, layer = self.add_spatial_data("标准单元", self.tbl_GridField, Grid_neccessary_fields)
 
             if not status:
                 self.txt_GridFile.setText("")
                 return
+
+            sty = get_qgis_style()
+            if sty is not None:
+                single_renderer(layer, color='%d, %d, %d' % (150, 150, 150), outline_color='#232323', opacity=0.2)
 
             self.txt_GridFile.setText(fileName)
         except:
@@ -274,12 +281,27 @@ class frmModelCal(QWidget, Ui_frmModelCal):
     # 潜力用地图层
     def addPotentialLandFile_clicked(self):
         try:
-            status, fileName = self.add_spatial_data("潜力用地", self.tbl_PotentialLandField,
+            status, fileName, layer = self.add_spatial_data("潜力用地", self.tbl_PotentialLandField,
                                                      Potential_Land_neccessary_fields)
 
             if not status:
                 self.txt_PotentialLandFile.setText("")
                 return
+
+            sty = get_qgis_style()
+            if sty is not None:
+                color_ramp = sty.colorRamp("Spectral")
+                if color_ramp is not None:
+                    color_ramp.invert()
+
+                    fni, field_name = get_field_index_no_case(layer, model_layer_meta.name_type)
+                    # fni = layer.dataProvider().fields().indexFromName(model_layer_meta.name_type)
+                    if fni == -1:
+                        log.warning("分级渲染图层{}不存在，无法完成渲染!".format(model_layer_meta.name_type))
+                    else:
+                        categrorized_renderer(layer, fni, field_name, color_ramp)
+                else:
+                    log.warning("Spectral颜色板丢失，无法完成图层渲染！")
 
             self.txt_PotentialLandFile.setText(fileName)
         except:
@@ -344,7 +366,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
             "ESRI Shapefile(*.shp)")
 
         if len(fileName) == 0:
-            return False, ""
+            return False, "", None
 
         wks = workspaceFactory().get_factory(DataType.shapefile)
         datasource = wks.openFromFile(fileName)
@@ -353,7 +375,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
         if datasource is None:
             log.error("无法读取shp文件！{}".format(fileName), dialog=True)
             tbl.setRowCount(0)
-            return False, ""
+            return False, "", None
         else:
             bValidate_name, bValidate_type = self.add_neccesary_field_to_item(datasource, tbl, neccessary_fields)
             if not bValidate_name and bValidate_type:
@@ -368,7 +390,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
             layer = QgsVectorLayer(fileName, layer_name, 'ogr')
             if not layer.isValid():
                 QMessageBox.information(self, '提示', '文件打开失败', QMessageBox.Ok)
-                return False, ""
+                return False, "", None
 
             del datasource
 
@@ -382,7 +404,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
             self.mapCanvas.setExtent(layer.extent())
             self.mapCanvas.refresh()
 
-            return True, fileName
+            return True, fileName, layer
 
     @Slot(QAbstractButton)
     def buttonBox_clicked(self, button: QAbstractButton):

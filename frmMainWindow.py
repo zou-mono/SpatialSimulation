@@ -206,7 +206,7 @@ class Ui_Window(QMainWindow, UI.UIMainWindow.Ui_MainWindow):
 
         # self.tabifyDockWidget(self.dockModelCal, self.dockLayer)
         self.dockModelCal.close()
-        self.dockLogView.close()
+        # self.dockLogView.close()
         # self.dockIdentifyResult.hide()
 
     def addLayer(self):
@@ -287,6 +287,7 @@ if __name__ == '__main__':
 
     QgsApplication.setPrefixPath('', True)
     app = QgsApplication([], True)
+
     # QgsApplication.setPluginPath(r"D:\空间模拟\SpatialSimulation\dist\qgis\plugins")
     # os.environ['QGIS_PROVIDER_FILE'] = "provider_spatialite"
     # QgsApplication.initQgis()

@@ -12,6 +12,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import Border
 import requests
 from osgeo import ogr
+from qgis._core import QgsStyle
 
 from UICore.Gv import srs_dict, SpatialReference, DataType
 from UICore.log4p import Log
@@ -19,6 +20,34 @@ import urllib.request, urllib.parse
 
 log = Log()
 
+
+def get_qgis_style():
+    sty = QgsStyle()
+    style_db_path = './resources/symbology-style.db'
+    if not os.path.exists(style_db_path):
+        style_db_path = './symbology-style.db'
+        if not os.path.exists(style_db_path):
+            log.warning('样式模板数据库"symbology-style.db"丢失！')
+            return None
+
+    bflag = sty.load(style_db_path)
+    if not bflag:
+        log.warning('样式模板数据库"symbology-style.db"格式错误，无法载入！')
+        return None
+    else:
+        return sty
+
+#  不考虑字段名的大小写敏感
+def get_field_index_no_case(layer, match_name):
+    field_names = layer.dataProvider().fields().names()
+
+    index = 0
+    for field_name in field_names:
+        ret = re.search(field_name, match_name, re.IGNORECASE)
+        if ret is not None:
+            return index, field_name
+        index += 1
+    return -1, match_name
 
 def is_already_opened_in_write_mode(filename):
     if os.path.exists(filename):

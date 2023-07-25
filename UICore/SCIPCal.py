@@ -440,7 +440,7 @@ class Model:
             max_ = self.m_df_land.query('{}==1'.format(self.name_MetroIf))[
                 "{}".format(self.name_r_po)].sum()
 
-            cur_ = (df_Land_IO[model_layer_meta.name_io] * df_Land_IO[model_layer_meta.name_r_po]).sum()
+            cur_ = (df_Land_IO[self.name_io] * df_Land_IO[model_layer_meta.name_r_po]).sum()
             # cur_ = df_Indicator_value.query('Indicator=="{}"'.format(model_config_params.Indicator_acc)).iloc[0, 1]
             res.ranges[model_config_params.Indicator_acc] = [0, max_, cur_]
 

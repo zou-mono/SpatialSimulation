@@ -1,25 +1,25 @@
 import json
 import os
-from random import randint
 
 from PyQt5.QtCore import Qt, QSize, pyqtSlot, QUrl, QTimer
-from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtWebKitWidgets import QWebView
-from PyQt5.QtWidgets import QMainWindow, QApplication, QStyleFactory, QTreeWidgetItem, QMessageBox
+from PyQt5.QtGui import QIcon, QPixmap, QColor
+from PyQt5.QtWidgets import QMainWindow, QStyleFactory, QTreeWidgetItem, QMessageBox
 import sys
 
-from qgis._core import QgsVectorLayer, QgsProject, QgsApplication
+from qgis._core import QgsVectorLayer, QgsProject, QgsApplication, QgsSymbol, QgsSimpleFillSymbolLayer
 
 from UI.UIModelBrowser import Ui_ModelBrowser
 from UICore.Gv import SplitterState, Dock, model_layer_meta, model_config_params, indicator_translate_dict, \
     get_main_path
 from UICore.SCIPCal import ModelResult
 import icons_rc
+from UICore.common import get_field_index_no_case, get_qgis_style
 from UICore.mSqlite import Sqlite
 import pandas as pd
 import numpy as np
 
-from UICore.histogram import ticks, best_bin, nice, kernelDensityEstimator, kde_bandwidth
+from UICore.histogram import ticks, best_bin, nice, kernelDensityEstimator
+from UICore.renderer import categrorized_renderer, single_renderer
 
 Slot = pyqtSlot
 
@@ -203,8 +203,6 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
 
     @Slot(QTreeWidgetItem, QTreeWidgetItem)
     def tree_model_currentItemChanged(self, cur_item: QTreeWidgetItem, previous_item: QTreeWidgetItem):
-        print("Changed")
-
         model = cur_item.data(0, Qt.UserRole)
 
         if model is not None:
@@ -217,6 +215,29 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
             lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource,
                                                           v, v, 'ogr'))
 
+            # 渲染grid和land图层
+            color_ramp = None
+            sty = get_qgis_style()
+            if sty is not None:
+                if k == 'land':
+                    spec_dict = {}
+                    fni, field_name = get_field_index_no_case(lyr, model_layer_meta.name_io)
+
+                    symbol = QgsSymbol.defaultSymbol(lyr.geometryType())
+                    symbol.setColor(QColor("#16dd37"))
+                    spec_dict[1] = symbol
+                    symbol = QgsSymbol.defaultSymbol(lyr.geometryType())
+                    symbol.setColor(QColor("#fdfffd"))
+                    spec_dict[0] = symbol
+
+                    # symbol = single_renderer(lyr, "#16dd37", "#16dd37")
+                    # spec_dict[1] = symbol
+                    # symbol = single_renderer(lyr, "#fdfffd", "#fdfffd")
+                    # spec_dict[0] = symbol
+                    categrorized_renderer(lyr, fni, field_name, None, spec_dict)
+                elif k == 'grid':
+                    single_renderer(lyr, color='%d, %d, %d' % (150, 150, 150), outline_color='#232323', opacity=0.1)
+
             if not lyr.isValid():
                 QMessageBox.information(self, '提示', '文件打开失败', QMessageBox.Ok)
                 return
@@ -228,9 +249,10 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.mapPreviewer.setLayers(lyrs)
         self.mapPreviewer.refresh()
 
-        # chart_path = os.path.join(get_main_path(), "resources", "radar_hist.html")
-        # self.chart_webView.load(QUrl.fromLocalFile(os.path.abspath(chart_path)))
-        self.chart_webView.load(QUrl.fromLocalFile(os.path.abspath(r'../resources/radar_hist.html')))
+        chart_path = os.path.join(get_main_path(), "resources", "radar_hist.html")
+        self.chart_webView.load(QUrl.fromLocalFile(os.path.abspath(chart_path)))
+        # self.chart_webView.load(QUrl.fromLocalFile(os.path.abspath(r'../resources/radar_hist.html')))
+
 
     @Slot(bool)
     def chart_webView_loadFinished(self, bflag: bool):

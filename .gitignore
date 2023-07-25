@@ -73,3 +73,5 @@ fabric.properties
 /temp
 
 **/__pycache__
+
+symbology-style.db

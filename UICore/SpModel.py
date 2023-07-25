@@ -1,5 +1,4 @@
 import os
-import sqlite3
 import sys
 import time
 import traceback
@@ -15,6 +14,7 @@ from UICore.log4p import Log
 
 log = Log(__name__)
 
+step_log_color = "#3399ff"  # 右侧Logviewer中info日志的突出显示为蓝色
 
 def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_field, vPotential_field,
              df_constraint, df_indicator_Weight, logClass=None):
@@ -46,32 +46,33 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
 
         if datasource is not None:
             ds_name = datasource.GetName()
-            log.info("创建临时数据库{}成功！".format(ds_name))
+            log.info("创建临时数据库{}成功！".format(ds_name), color=step_log_color)
 
-            log.info("开始计算模型输入指标...")
+            log.info("开始计算模型输入指标...", color=step_log_color)
             field_cal(datasource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vPotential_field)
-            log.info("模型输入指标计算完毕.")
+            log.info("模型输入指标计算完毕.", color=step_log_color)
 
-            log.info("开始构建优化传导模型...")
+            log.info("开始构建优化传导模型...", color=step_log_color)
             model = Model(model_name, ds_name, df_constraint, log)
             model.build()
-            log.info("优化传导模型构建完毕.")
-            log.info("读取模型预设参数文件...")
+            log.info("优化传导模型构建完毕.", color=step_log_color)
+            log.info("读取模型预设参数文件...", color=step_log_color)
 
             bFlag = True
             preset_params = model.load_preset_params()
             if preset_params is None:
-                log.warning("读取模型预设参数文件失败，尝试重建文件...")
+                # log.warning("读取模型预设参数文件失败，尝试重建文件...")
+                log.warning("模型预设参数文件未找到，系统将重新生成...")
                 bFlag = model.save_preset_params()
                 preset_params = model.load_preset_params()
 
             if bFlag:
-                log.info("模型预制参数载入成功！")
+                log.info("模型预制参数载入成功！", color=step_log_color)
                 w = df_indicator_Weight['Weight'].tolist()
                 # w = [v for v in vIndicatorWeight.values()]
-                log.info("开始模型优化计算...")
+                log.info("开始模型优化计算...", color=step_log_color)
                 model_res = model.WeightEvaObj(preset_params, w)
-                log.info("模型优化计算完成.")
+                log.info("模型优化计算完成.", color=step_log_color)
                 return True, model_res
             else:
                 raise Exception("无法完成模型计算，请检查数据和参数设置！")

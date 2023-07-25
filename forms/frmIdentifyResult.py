@@ -136,8 +136,6 @@ class frmIdentfiyResult(QWidget, Ui_identifyResult):
         self.lineEdit.setText("{}, {}".format(str(endMapPoint.x()), str(endMapPoint.y())))
         self.lbl_identifyInfo.setText("识别出{}个要素".format(str(iIdentify_count)))
 
-        print(py_dir_path)
-
     def layerItem(self, layer):
         for i in range(self.tree_result.topLevelItemCount()):
             item = self.tree_result.topLevelItem(i)

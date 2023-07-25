@@ -80,7 +80,7 @@
         top_option = null;
         var hist_data = {};
         top_option = {
-            color: ['#67F9D8', '#FFE434', '#56A3F1', '#FF917C'],
+            color: ['blue', 'red', '#56A3F1', '#FF917C'],
             // title: {
             //     text: '评价指标',
             //     textAlign: 'center',
@@ -135,8 +135,12 @@
                 },
                 data: [{
                     name: '评价指标',
+                    lineStyle: {
+                        color: 'black'
+                    },
                     areaStyle: {
-                        color: 'rgba(255, 228, 52, 0.6)'
+                        // color: 'rgba(255, 228, 52, 0.6)'
+                        color: 'red'
                     }
                 }]
             }]
@@ -144,7 +148,7 @@
 
         bottom_option = null;
         bottom_option = {
-            color: ['#67F9D8', '#FFE434', '#56A3F1', '#FF917C'],
+            color: ['cyan', 'red', '#56A3F1', '#FF917C'],
             title: {
                 text: '地块指标值的统计分布',
                 textAlign: 'center',
@@ -178,7 +182,8 @@
                 type: 'bar',
                 // stack: 'total',
                 clip: true,
-                data: []
+                data: [],
+
             }, {
                 name: '核密度',
                 type: 'line',
