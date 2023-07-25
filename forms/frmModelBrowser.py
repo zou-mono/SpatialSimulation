@@ -27,7 +27,7 @@ test_land = None
 test_grid = None
 
 class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, chart_path=""):
         super(UI_ModelBrowser, self).__init__(parent=parent)
         self.parent = parent
         self.setupUi(self)
@@ -69,6 +69,8 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.bFirst = True
         self.get_field_names()
         self.clear()
+
+        self.chart_path = chart_path
 
     def get_field_names(self):
         self.name_area = model_layer_meta.name_potentialLand_area.lower()
@@ -228,9 +230,11 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.mapPreviewer.setLayers(lyrs)
         self.mapPreviewer.refresh()
 
-        chart_path = os.path.join(get_main_path(), "resources", "radar_hist.html")
-        self.chart_webView.load(QUrl.fromLocalFile(os.path.abspath(chart_path)))
-        # self.chart_webView.load(QUrl.fromLocalFile(os.path.abspath(r'../resources/radar_hist.html')))
+        if self.chart_path == "":
+            self.chart_path = os.path.join(get_main_path(), "resources", "radar_hist.html")
+            self.chart_webView.load(QUrl.fromLocalFile(os.path.abspath(self.chart_path)))
+        else:
+            self.chart_webView.load(QUrl.fromLocalFile(self.chart_path))
 
     def render_layers(self, k, lyr):
         sty = get_qgis_style()
@@ -268,7 +272,7 @@ if __name__ == '__main__':
     # app = QApplication(sys.argv)
     app = QgsApplication([], True)
 
-    window = UI_ModelBrowser()
+    window = UI_ModelBrowser(chart_path=os.path.abspath(r'../resources/radar_hist.html'))
     model_res1 = ModelResult()
     model_res1.name = 'model_2023-07-17-20-07-38'
     model_res1.dataSource = r'D:\空间模拟\SpatialSimulation\res\model_files\model_2023-07-17-20-07-38.sqlite'
