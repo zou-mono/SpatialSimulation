@@ -2,8 +2,16 @@ from enum import Enum
 
 main_path = ""
 
+
 def get_main_path():
     return main_path
+
+
+class modelRole:
+    layerID = 11000
+    modelID = 11001
+    model = 11002
+
 
 #  模型运算中涉及图层和字段设置
 class model_layer_meta():

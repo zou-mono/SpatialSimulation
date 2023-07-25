@@ -1,16 +1,18 @@
 import json
 import os
+import uuid
 
 from PyQt5.QtCore import Qt, QSize, pyqtSlot, QUrl, QTimer
 from PyQt5.QtGui import QIcon, QPixmap, QColor
 from PyQt5.QtWidgets import QMainWindow, QStyleFactory, QTreeWidgetItem, QMessageBox
 import sys
 
-from qgis._core import QgsVectorLayer, QgsProject, QgsApplication, QgsSymbol, QgsSimpleFillSymbolLayer
+from qgis._core import QgsVectorLayer, QgsProject, QgsApplication, QgsSymbol, QgsSimpleFillSymbolLayer, QgsMapLayerModel
+from qgis._gui import QgsFeatureListModel
 
 from UI.UIModelBrowser import Ui_ModelBrowser
 from UICore.Gv import SplitterState, Dock, model_layer_meta, model_config_params, indicator_translate_dict, \
-    get_main_path
+    get_main_path, modelRole
 from UICore.SCIPCal import ModelResult
 import icons_rc
 from UICore.common import get_field_index_no_case, get_qgis_style
@@ -92,7 +94,8 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
             if isinstance(model, ModelResult):
                 layItem = QTreeWidgetItem([model.name])
                 layItem.setIcon(0, QIcon(QPixmap(":/icons/icons/mGeoPackage.svg")))
-                layItem.setData(0, Qt.UserRole, model)
+                layItem.setData(0, modelRole.model, model)
+                # layItem.setData(0, modelRole.modelID, model.ID)
 
                 self.tree_model.addTopLevelItem(layItem)
 
@@ -205,12 +208,26 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
 
     @Slot(QTreeWidgetItem, QTreeWidgetItem)
     def tree_model_currentItemChanged(self, cur_item: QTreeWidgetItem, previous_item: QTreeWidgetItem):
-        model = cur_item.data(0, Qt.UserRole)
+        model = cur_item.data(0, modelRole.model)
+
+        if previous_item is None:
+            model_id = -1
+        else:
+            model_id = previous_item.data(0, modelRole.model).ID
 
         if model is not None:
             self.current_model = model
         else:
             return
+
+        if model.ID == model_id:
+            return
+
+        lyr = cur_item.data(0, QgsMapLayerModel.LayerRole)
+        if lyr is not None:
+            w_item = topmostItem(cur_item)
+        else:
+            w_item = cur_item
 
         lyrs = []
         for k, v in model.layers.items():
@@ -218,6 +235,12 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
 
             # 渲染grid和land图层
             self.render_layers(k, lyr)
+
+            if w_item.childCount() < len(model.layers):
+                child = QTreeWidgetItem([v])
+                child.setData(0, QgsMapLayerModel.LayerRole, lyr)
+                child.setData(0, modelRole.model, model)
+                w_item.addChild(child)
 
             if not lyr.isValid():
                 QMessageBox.information(self, '提示', '文件打开失败', QMessageBox.Ok)
@@ -232,9 +255,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
 
         if self.chart_path == "":
             self.chart_path = os.path.join(get_main_path(), "resources", "radar_hist.html")
-            self.chart_webView.load(QUrl.fromLocalFile(os.path.abspath(self.chart_path)))
-        else:
-            self.chart_webView.load(QUrl.fromLocalFile(self.chart_path))
+        self.chart_webView.load(QUrl.fromLocalFile(os.path.abspath(self.chart_path)))
 
     def render_layers(self, k, lyr):
         sty = get_qgis_style()
@@ -268,18 +289,26 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.tree_model.sortByColumn(-1, Qt.AscendingOrder)
 
 
+def topmostItem(item):
+    while item.parent():
+        item = item.parent()
+    return item
+
+
 if __name__ == '__main__':
     # app = QApplication(sys.argv)
     app = QgsApplication([], True)
 
     window = UI_ModelBrowser(chart_path=os.path.abspath(r'../resources/radar_hist.html'))
     model_res1 = ModelResult()
+    model_res1.ID = str(uuid.uuid1())
     model_res1.name = 'model_2023-07-17-20-07-38'
     model_res1.dataSource = r'D:\空间模拟\SpatialSimulation\res\model_files\model_2023-07-17-20-07-38.sqlite'
     model_res1.layers = {'land': '居住专规潜力用地_0621_s2', 'grid': '标准单元_0621_s2'}
     model_res1.ranges = {'Total net increase R building': [0, 4925353.334999999, 2348936.6530000074], 'Total demolish building area': [-18825600.5823172, 0, -2949169.581999993], 'Total Metro cover buidling area': [0, 10739080.282, 1493.8861800817494], 'Total cover public service area': [0, 3896.1128, 1789.9464999999973], 'BI': [0, 6.633899399999999, 0.7677029]}
 
     model_res2 = ModelResult()
+    model_res2.ID = str(uuid.uuid1())
     model_res2.name = '2023-07-17-20-42-03'
     model_res2.dataSource = r'D:\空间模拟\SpatialSimulation\res\model_files\model_2023-07-17-20-07-38.sqlite'
     model_res2.layers = {'land': '居住专规潜力用地_0621_s2', 'grid': '标准单元_0621_s2'}

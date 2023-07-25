@@ -1,6 +1,8 @@
 import os, time
 import math
 import traceback
+import uuid
+
 import pandas as pd
 import numpy as np
 from PyQt5.QtCore import pyqtProperty
@@ -313,7 +315,21 @@ class Model:
         if self.model is None:
             return False
 
-        self.model.setObjective(EvaObj, "maximize")
+        sorted_inds, sols, sol_list = self.model_feasibles(EvaObj, 'maximize', w)
+
+        if sols is None:
+            return False
+        else:
+            res = self.export_result(sorted_inds, sols, sol_list)
+            return res
+
+    # def singleEvaObj(self, obj, w):
+
+    #  计算所有可行解，并根据TOPSIS算法选取最优解
+    def model_feasibles(self, obj, sense='minimize', w=None):
+        if w is None:
+            w = []
+        self.model.setObjective(obj, sense)
         self.model.optimize()
         sol_time = self.model.getSolvingTime()
         nsols = self.model.getNSols()  # 记录最优解的个数
@@ -322,7 +338,7 @@ class Model:
 
         if nsols < 1:
             log.warning("在当前模型中不存在可行解.")
-            return False
+            return None, None, None
 
         sol_list = []
         for i in range(nsols):
@@ -353,8 +369,7 @@ class Model:
         bnum = sorted_inds[0]
         log.debug("最佳方案编号: {}".format(bnum))
 
-        res = self.export_result(sorted_inds, sols, sol_list)
-        return res
+        return sorted_inds, sols, sol_list
 
     def export_result(self, sorted_inds, sols, sol_list):
         try:
@@ -417,6 +432,7 @@ class Model:
             self.write_to_model_files(out_lyr, ds_path, model_layer_meta.name_layer_Grid)
 
             res = ModelResult()
+            res.ID = str(uuid.uuid1())
             res.name = self.model_name
             res.dataSource = ds_path
             res.layers = {
@@ -536,12 +552,21 @@ class Model:
 
 class ModelResult():
     def __init__(self):
+        self._id = -1  # 模型唯一ID
         self._name = ""  # 模型名称
         self._dataSource = ""  # 数据库datasource
         self._layers = {}  # 图形结果的名称
 
         self._indicators = {}  # 指标计算结果
         self._ranges = {}  # 变量范围值 [min, max, current]
+
+    @pyqtProperty(str)
+    def ID(self):
+        return self._id
+
+    @ID.setter
+    def ID(self, v):
+        self._id = v
 
     @pyqtProperty(str)
     def name(self):
