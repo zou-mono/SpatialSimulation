@@ -34,6 +34,8 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
     temp_sqliteDB_path = os.path.join(cur_path, "tmp")
 
     try:
+        start = time.time()
+
         if not os.path.exists(temp_sqliteDB_path):
             os.mkdir(temp_sqliteDB_path)
 
@@ -53,11 +55,11 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
             field_cal(datasource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vPotential_field)
             log.info("模型输入指标计算完毕.", color=success_log_color)
 
-            log.info("开始构建优化传导模型...", color=success_log_color)
+            log.info("构建优化传导模型...", color=success_log_color)
             model = Model(model_name, ds_name, df_constraint, log)
             model.build()
-            log.info("优化传导模型构建完毕.", color=success_log_color)
-            log.info("读取模型预设参数文件...", color=success_log_color)
+            # log.info("优化传导模型构建完毕.", color=success_log_color)
+            log.info("载入模型预设参数文件...", color=success_log_color)
 
             bFlag = True
             preset_params = model.load_preset_params()
@@ -68,12 +70,20 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
 
             if bFlag:
                 preset_params = model.load_preset_params()
-                log.info("模型预制参数载入成功！", color=success_log_color)
+                # log.info("模型预制参数载入成功！", color=success_log_color)
                 w = df_indicator_Weight['Weight'].tolist()
                 # w = [v for v in vIndicatorWeight.values()]
                 log.info("开始模型优化计算...", color=success_log_color)
+                log.info("多目标模型优化计算...")
                 model_res = model.WeightEvaObj(preset_params, w)
-                log.info("模型优化计算完成.", color=success_log_color)
+                log.info("单目标优化计算...")
+
+                ds_path = model_res.dataSource
+                log.info("模型优化计算完毕，结果导出至模型库{}.".format(os.path.abspath(ds_path)), color=success_log_color)
+                model.export_spatial_layer(ds_path)
+
+                end = time.time()
+                log.info("完成所有计算步骤，共耗时：{}秒".format("{:.2f}".format(end - start)))
                 return True, model_res
             else:
                 raise Exception("无法完成模型计算，请检查数据和参数设置！")

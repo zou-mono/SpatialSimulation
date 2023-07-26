@@ -16,6 +16,7 @@ from UICore.Gv import SplitterState, Dock, model_layer_meta, model_config_params
 from UICore.SCIPCal import ModelResult
 import icons_rc
 from UICore.common import get_field_index_no_case, get_qgis_style
+from UICore.log4p import Log
 from UICore.mSqlite import Sqlite
 import pandas as pd
 import numpy as np
@@ -24,6 +25,8 @@ from UICore.histogram import ticks, best_bin, nice, kernelDensityEstimator
 from UICore.renderer import categrorized_renderer, single_renderer
 
 Slot = pyqtSlot
+
+log = Log(__name__)
 
 test_land = None
 test_grid = None
@@ -104,7 +107,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
                     self.bFirst = False
 
                 for k, v in model.layers.items():
-                    lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource, v, v, 'ogr'))
+                    lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource, v) , v, 'ogr')
 
                     child = QTreeWidgetItem([v])
                     child.setData(0, QgsMapLayerModel.LayerRole, lyr)
@@ -112,7 +115,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
                     layItem.addChild(child)
 
                     if not lyr.isValid():
-                        QMessageBox.information(self, '提示', '文件打开失败', QMessageBox.Ok)
+                        log.warning("图层文件{}读取失败".format("{}|layername={}".format(model.dataSource, v)))
                         return
 
         if self.bFirst:
@@ -132,6 +135,10 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
             select {} from {}
         '''.format(model_layer_meta.name_plabi, model.layers['grid'])
         df_grid = pd.DataFrame.from_dict(sqlite_db.execute_dict(exec_str))
+
+        if len(df_land) ==0 or len(df_grid) == 0:
+            log.warning("优化结果图层读取为空，无法进行直方图展示.")
+            return
 
         # net increase
         df_filter = (df_land[self.name_r_po] - df_land[self.name_CurRBld]).map(
@@ -237,14 +244,14 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
 
         lyrs = []
         for k, v in model.layers.items():
-            lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource, v, v, 'ogr'))
+            lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource, v), v, 'ogr')
+
+            if not lyr.isValid():
+                log.warning("图层文件{}读取失败".format("{}|layername={}".format(model.dataSource, v)))
+                continue
 
             # 渲染grid和land图层
             self.render_layers(k, lyr)
-
-            if not lyr.isValid():
-                QMessageBox.information(self, '提示', '文件打开失败', QMessageBox.Ok)
-                return
 
             self.mapPreviewer.setExtent(lyr.extent())
             lyrs.append(lyr)

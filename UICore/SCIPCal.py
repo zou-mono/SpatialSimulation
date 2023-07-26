@@ -321,7 +321,7 @@ class Model:
             return False
         else:
             res = self.create_model_result()
-            res = self.export_result(res, sorted_inds, sols, sol_list)
+            res = self.export_result(res, sorted_inds, sols, sol_list, self.name_io, self.name_plabi)
             return res
 
     # def singleEvaObj(self, obj, w):
@@ -374,33 +374,34 @@ class Model:
 
     # 创建一个模型结果对象
     def create_model_result(self):
+        res = ModelResult()
+        _id = str(uuid.uuid1())
+        res.ID = _id
+        res.name = self.model_name
+        res.layers = {
+            "land": model_layer_meta.name_layer_PotentialLand,
+            "grid": model_layer_meta.name_layer_Grid
+        }
+
         if not os.path.exists(model_config_params.result_folder):
             os.mkdir(model_config_params.result_folder)
         model_path = os.path.join(model_config_params.result_folder, "model_files")
         if not os.path.exists(model_path):
             os.mkdir(model_path)
         ds_path = os.path.join(model_config_params.result_folder, "model_files", self.model_name)
-        if os.path.exists(ds_path):
-            ds_path = ds_path + ".sqlite"
+        if os.path.exists(ds_path + ".sqlite"):
+            ds_path = ds_path + "_" + _id + ".sqlite"
         else:
-            ds_path = ds_path + time.strftime('%Y-%m-%d-%H-%M-%S') + ".sqlite"
+            ds_path = ds_path + ".sqlite"
 
-        res = ModelResult()
-        res.ID = str(uuid.uuid1())
-        res.name = self.model_name
         res.dataSource = ds_path
-        res.layers = {
-            "land": model_layer_meta.name_layer_PotentialLand,
-            "grid": model_layer_meta.name_layer_Grid
-        }
 
         return res
 
-    def export_result(self, res, sorted_inds, sols, sol_list):
+    #  io_field和bi_field是需要挂接的临时表名和临时字段名， 临时表和临时字段同名
+    def export_result(self, res, sorted_inds, sols, sol_list, io_field, bi_field):
         try:
             ds_path = res.dataSource
-
-            log.info("导出模型运算结果至模型库{}.".format(ds_path))
 
             # 保存最优值
             Land_IO = []
@@ -427,25 +428,11 @@ class Model:
 
             #  join result
             self.join_result_to_origin_layer(df_Land_IO, model_layer_meta.name_layer_PotentialLand,
-                                             self.name_io,
-                                             model_layer_meta.name_landid, self.name_io, "Integer", 1)
+                                             io_field,
+                                             model_layer_meta.name_landid, io_field, "Integer", 1)
             self.join_result_to_origin_layer(df_Unit_BI, model_layer_meta.name_layer_Grid,
-                                             self.name_plabi,
-                                             model_layer_meta.name_unitid, self.name_plabi, "Real", -1)
-
-            #  导出结果图形
-            out_lyr = QgsVectorLayer("{}|layername={}".format(self.db_name, model_layer_meta.name_layer_PotentialLand),
-                                                              model_layer_meta.name_layer_PotentialLand, 'ogr')
-            # output_file_land = os.path.join(model_path, model_layer_meta.name_layer_PotentialLand)
-            # self.write_to_model_files(out_lyr, output_file_land, model_layer_meta.name_layer_PotentialLand)
-            self.write_to_model_files(out_lyr, ds_path, model_layer_meta.name_layer_PotentialLand)
-
-            #  导出标准单元图层
-            out_lyr = QgsVectorLayer("{}|layername={}".format(self.db_name, model_layer_meta.name_layer_Grid),
-                                     model_layer_meta.name_layer_Grid, 'ogr')
-            # output_file_grid = os.path.join(model_path, model_layer_meta.name_layer_Grid)
-            # self.write_to_model_files(out_lyr, output_file_grid, model_layer_meta.name_layer_Grid)
-            self.write_to_model_files(out_lyr, ds_path, model_layer_meta.name_layer_Grid)
+                                             bi_field,
+                                             model_layer_meta.name_unitid, bi_field, "Real", -1)
 
             #  net increase变量的极值范围
             max_ = (self.m_df_land[self.name_r_po] - self.m_df_land[self.name_CurRBld]).map(
@@ -481,6 +468,21 @@ class Model:
         except Exception as e:
             log.error(traceback.format_exc())
             return None
+
+    #  导出结果图形
+    def export_spatial_layer(self, ds_path):
+        out_lyr = QgsVectorLayer("{}|layername={}".format(self.db_name, model_layer_meta.name_layer_PotentialLand),
+                                 model_layer_meta.name_layer_PotentialLand, 'ogr')
+        # output_file_land = os.path.join(model_path, model_layer_meta.name_layer_PotentialLand)
+        # self.write_to_model_files(out_lyr, output_file_land, model_layer_meta.name_layer_PotentialLand)
+        self.write_to_model_files(out_lyr, ds_path, model_layer_meta.name_layer_PotentialLand)
+
+        #  导出标准单元图层
+        out_lyr = QgsVectorLayer("{}|layername={}".format(self.db_name, model_layer_meta.name_layer_Grid),
+                                 model_layer_meta.name_layer_Grid, 'ogr')
+        # output_file_grid = os.path.join(model_path, model_layer_meta.name_layer_Grid)
+        # self.write_to_model_files(out_lyr, output_file_grid, model_layer_meta.name_layer_Grid)
+        self.write_to_model_files(out_lyr, ds_path, model_layer_meta.name_layer_Grid)
 
     def join_result_to_origin_layer(self, df_join, origin_lyr, res_lyr,  index_col_name, join_col_name, data_type, default_value):
         engine = create_engine(r'sqlite:///{}'.format(self.db_name), echo=False)
