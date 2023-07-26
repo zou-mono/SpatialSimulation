@@ -56,6 +56,7 @@ class Model:
         self.m_df_land = self.read_file(self.name_layer_PotentialLand)
         self.m_df_match = self.read_file(self.name_layer_match)
         self.model = None
+        self.model_res = None
 
         global log
         if logClass is not None:
@@ -307,24 +308,23 @@ class Model:
                    (self.x_I_Acc-df_para.loc["Acc", "min"])/df_para.loc["Acc", "range"] + \
                    (self.x_I_PublicServe-df_para.loc["PublicService", "min"])/df_para.loc["PublicService", "range"]
             return EvaObj
-
         except:
             return None
 
-    def WeightEvaObj(self, EvaObj, w):
+    #  目标优化计算
+    def execute_obj(self, EvaObj=None, sense='maximize', w=None, io_field=model_layer_meta.name_io, bi_field=model_layer_meta.name_plabi):
         if self.model is None:
             return False
 
-        sorted_inds, sols, sol_list = self.model_feasibles(EvaObj, 'maximize', w)
+        sorted_inds, sols, sol_list = self.model_feasibles(EvaObj, sense, w)
 
         if sols is None:
             return False
         else:
-            res = self.create_model_result()
-            res = self.export_result(res, sorted_inds, sols, sol_list, self.name_io, self.name_plabi)
-            return res
-
-    # def singleEvaObj(self, obj, w):
+            if self.model_res is None:
+                self.model_res = self.create_model_result()
+            self.model_res = self.export_result_to_temp(self.model_res, sorted_inds, sols, sol_list, io_field, bi_field)
+            return self.model_res
 
     #  计算所有可行解，并根据TOPSIS算法选取最优解
     def model_feasibles(self, obj, sense='minimize', w=None):
@@ -399,7 +399,7 @@ class Model:
         return res
 
     #  io_field和bi_field是需要挂接的临时表名和临时字段名， 临时表和临时字段同名
-    def export_result(self, res, sorted_inds, sols, sol_list, io_field, bi_field):
+    def export_result_to_temp(self, res, sorted_inds, sols, sol_list, io_field, bi_field):
         try:
             ds_path = res.dataSource
 

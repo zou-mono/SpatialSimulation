@@ -75,16 +75,16 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
                 # w = [v for v in vIndicatorWeight.values()]
                 log.info("开始模型优化计算...", color=success_log_color)
                 log.info("多目标模型优化计算...")
-                model_res = model.WeightEvaObj(preset_params, w)
+                model.execute_obj(preset_params, w=w)
                 log.info("单目标优化计算...")
-
-                ds_path = model_res.dataSource
+                # model_res = model.execute_obj(model.x_Unit_PlaBI, w=w)
+                ds_path = model.model_res.dataSource
                 log.info("模型优化计算完毕，结果导出至模型库{}.".format(os.path.abspath(ds_path)), color=success_log_color)
                 model.export_spatial_layer(ds_path)
 
                 end = time.time()
                 log.info("完成所有计算步骤，共耗时：{}秒".format("{:.2f}".format(end - start)))
-                return True, model_res
+                return True, model.model_res
             else:
                 raise Exception("无法完成模型计算，请检查数据和参数设置！")
         else:
