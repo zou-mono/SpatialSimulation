@@ -320,7 +320,8 @@ class Model:
         if sols is None:
             return False
         else:
-            res = self.export_result(sorted_inds, sols, sol_list)
+            res = self.create_model_result()
+            res = self.export_result(res, sorted_inds, sols, sol_list)
             return res
 
     # def singleEvaObj(self, obj, w):
@@ -371,8 +372,36 @@ class Model:
 
         return sorted_inds, sols, sol_list
 
-    def export_result(self, sorted_inds, sols, sol_list):
+    # 创建一个模型结果对象
+    def create_model_result(self):
+        if not os.path.exists(model_config_params.result_folder):
+            os.mkdir(model_config_params.result_folder)
+        model_path = os.path.join(model_config_params.result_folder, "model_files")
+        if not os.path.exists(model_path):
+            os.mkdir(model_path)
+        ds_path = os.path.join(model_config_params.result_folder, "model_files", self.model_name)
+        if os.path.exists(ds_path):
+            ds_path = ds_path + ".sqlite"
+        else:
+            ds_path = ds_path + time.strftime('%Y-%m-%d-%H-%M-%S') + ".sqlite"
+
+        res = ModelResult()
+        res.ID = str(uuid.uuid1())
+        res.name = self.model_name
+        res.dataSource = ds_path
+        res.layers = {
+            "land": model_layer_meta.name_layer_PotentialLand,
+            "grid": model_layer_meta.name_layer_Grid
+        }
+
+        return res
+
+    def export_result(self, res, sorted_inds, sols, sol_list):
         try:
+            ds_path = res.dataSource
+
+            log.info("导出模型运算结果至模型库{}.".format(ds_path))
+
             # 保存最优值
             Land_IO = []
             Unit_BI = []
@@ -404,19 +433,6 @@ class Model:
                                              self.name_plabi,
                                              model_layer_meta.name_unitid, self.name_plabi, "Real", -1)
 
-            if not os.path.exists(model_config_params.result_folder):
-                os.mkdir(model_config_params.result_folder)
-            model_path = os.path.join(model_config_params.result_folder, "model_files")
-            if not os.path.exists(model_path):
-                os.mkdir(model_path)
-            ds_path = os.path.join(model_config_params.result_folder, "model_files", self.model_name)
-            if os.path.exists(ds_path):
-                ds_path = ds_path + ".sqlite"
-            else:
-                ds_path = ds_path + time.strftime('%Y-%m-%d-%H-%M-%S') + ".sqlite"
-
-            log.info("导出模型运算结果至模型库{}.".format(ds_path))
-
             #  导出结果图形
             out_lyr = QgsVectorLayer("{}|layername={}".format(self.db_name, model_layer_meta.name_layer_PotentialLand),
                                                               model_layer_meta.name_layer_PotentialLand, 'ogr')
@@ -430,15 +446,6 @@ class Model:
             # output_file_grid = os.path.join(model_path, model_layer_meta.name_layer_Grid)
             # self.write_to_model_files(out_lyr, output_file_grid, model_layer_meta.name_layer_Grid)
             self.write_to_model_files(out_lyr, ds_path, model_layer_meta.name_layer_Grid)
-
-            res = ModelResult()
-            res.ID = str(uuid.uuid1())
-            res.name = self.model_name
-            res.dataSource = ds_path
-            res.layers = {
-                "land": model_layer_meta.name_layer_PotentialLand,
-                "grid": model_layer_meta.name_layer_Grid
-            }
 
             #  net increase变量的极值范围
             max_ = (self.m_df_land[self.name_r_po] - self.m_df_land[self.name_CurRBld]).map(

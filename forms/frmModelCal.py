@@ -62,7 +62,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
         font.setPointSize(9)
         self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.buttonBox.button(QDialogButtonBox.Ok).setFont(font)
-        self.buttonBox.button(QDialogButtonBox.Ok).setText("运行")
+        self.buttonBox.button(QDialogButtonBox.Ok).setText("开始寻找方案")
         self.buttonBox.button(QDialogButtonBox.Cancel).setFont(font)
         self.buttonBox.button(QDialogButtonBox.Cancel).setText("取消")
 

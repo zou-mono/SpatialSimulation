@@ -103,6 +103,18 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
                     self.tree_model.setCurrentItem(layItem)
                     self.bFirst = False
 
+                for k, v in model.layers.items():
+                    lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource, v, v, 'ogr'))
+
+                    child = QTreeWidgetItem([v])
+                    child.setData(0, QgsMapLayerModel.LayerRole, lyr)
+                    child.setData(0, modelRole.model, model)
+                    layItem.addChild(child)
+
+                    if not lyr.isValid():
+                        QMessageBox.information(self, '提示', '文件打开失败', QMessageBox.Ok)
+                        return
+
         if self.bFirst:
             self.tree_model.collapseAll()
 
@@ -223,24 +235,12 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         if model.ID == model_id:
             return
 
-        lyr = cur_item.data(0, QgsMapLayerModel.LayerRole)
-        if lyr is not None:
-            w_item = topmostItem(cur_item)
-        else:
-            w_item = cur_item
-
         lyrs = []
         for k, v in model.layers.items():
             lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource, v, v, 'ogr'))
 
             # 渲染grid和land图层
             self.render_layers(k, lyr)
-
-            if w_item.childCount() < len(model.layers):
-                child = QTreeWidgetItem([v])
-                child.setData(0, QgsMapLayerModel.LayerRole, lyr)
-                child.setData(0, modelRole.model, model)
-                w_item.addChild(child)
 
             if not lyr.isValid():
                 QMessageBox.information(self, '提示', '文件打开失败', QMessageBox.Ok)
@@ -267,11 +267,11 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
                 symbol = QgsSymbol.defaultSymbol(lyr.geometryType())
                 symbol = single_renderer(lyr, symbol.type(), color="#16dd37", outline_color="#16dd37", bReprint=False)
                 spec_dict[1] = symbol
-                symbol = single_renderer(lyr, symbol.type(), color="#fdfffd", outline_color="#FF0000", bReprint=False)
+                symbol = single_renderer(lyr, symbol.type(), color="#383838", outline_color="#383838", bReprint=False)
                 spec_dict[0] = symbol
                 categrorized_renderer(lyr, fni, field_name, None, spec_dict)
             elif k == 'grid':
-                single_renderer(lyr, color="#383838", outline_color='#232323', opacity=0.3)
+                single_renderer(lyr, color="#fdfffd", outline_color='#232323', opacity=1)
 
     @Slot(bool)
     def chart_webView_loadFinished(self, bflag: bool):
@@ -309,23 +309,10 @@ if __name__ == '__main__':
 
     model_res2 = ModelResult()
     model_res2.ID = str(uuid.uuid1())
-    model_res2.name = '2023-07-17-20-42-03'
-    model_res2.dataSource = r'D:\空间模拟\SpatialSimulation\res\model_files\model_2023-07-17-20-07-38.sqlite'
-    model_res2.layers = {'land': '居住专规潜力用地_0621_s2', 'grid': '标准单元_0621_s2'}
-    model_res2.ranges = {'Total net increase R building': [0, 4925353.334999999, 2348936.6530000074], 'Total demolish building area': [-18825600.5823172, 0, -2949169.581999993], 'Total Metro cover buidling area': [0, 10739080.282, 1493.8861800817494], 'Total cover public service area': [0, 3896.1128, 1789.9464999999973], 'BI': [0, 6.633899399999999, 0.7677029]}
-
-    # sqlite_db = Sqlite(r"D:\空间模拟\SpatialSimulation\tmp\2023-07-17-14-56-59.sqlite")
-    # exec_str = '''
-    #     select * from 居住专规潜力用地_0621_s2 where io=1
-    # '''
-    # r = sqlite_db.execute_dict(exec_str)
-    # test_land = pd.DataFrame.from_dict(r)
-    #
-    # exec_str = '''
-    #     select * from 标准单元_0621_s2
-    # '''
-    # r = sqlite_db.execute_dict(exec_str)
-    # test_grid = pd.DataFrame.from_dict(r)
+    model_res2.name = '2023-07-24-18-43-18'
+    model_res2.dataSource = r'D:\空间模拟\SpatialSimulation\res\model_files\model_2023-07-24-18-42-452023-07-24-18-43-18.sqlite'
+    model_res2.layers = {'land': '居住专规潜力用地_0621', 'grid': '标准单元_0621'}
+    model_res2.ranges = {'Total net increase R building': [0, 4925353.334999999, 1348936.6530000074], 'Total demolish building area': [-18825600.5823172, 0, -2049169.581999993], 'Total Metro cover buidling area': [0, 10739080.282, 893.8861800817494], 'Total cover public service area': [0, 3896.1128, 1789.9464999999973], 'BI': [0, 6.633899399999999, 0.7677029]}
 
     window.updateForm([model_res1, model_res2])
     window.setWindowFlags(Qt.Window)
