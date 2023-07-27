@@ -71,6 +71,7 @@ fabric.properties
 /test
 /tmp
 /temp
+/config
 
 **/__pycache__
 

@@ -3,11 +3,12 @@ import time
 import traceback
 from os.path import basename
 
-from PyQt5.QtCore import Qt, QSize, QThread, QRegularExpression
+from PyQt5.QtCore import Qt, QSize, QThread, QRegularExpression, QModelIndex
 from PyQt5.QtGui import QRegularExpressionValidator
 from PyQt5.QtWidgets import QApplication, QDialogButtonBox, QWidget, QFileDialog, \
     QAbstractButton, QMessageBox, QTableWidget, QComboBox, QTableWidgetItem, \
-    QAbstractItemView
+    QAbstractItemView, QCheckBox, QHBoxLayout, QHeaderView, QStyledItemDelegate, QStyleOptionViewItem, QLineEdit, \
+    QItemDelegate, QSpinBox, QDoubleSpinBox
 from PyQt5 import QtCore, QtGui
 import sys
 
@@ -23,6 +24,7 @@ from UICore.DataFactory import workspaceFactory
 from osgeo import ogr, gdal
 from UICore.Gv import DataType, model_config_params, model_layer_meta
 from UICore.renderer import categrorized_renderer, single_renderer
+from UICore.styles import table_default_style
 from UICore.workerThread import ModelCalWorker
 
 from forms.frmModelBrowser import UI_ModelBrowser as frmModelBrowser
@@ -50,6 +52,23 @@ Potential_Land_neccessary_fields = {
     '可享用的公服面积': ['PubService', 'num']
 }
 
+Weight_neccessary = {
+    0: '新增总居住建筑量',
+    1: '拆除总建筑量',
+    2: '职住平衡指数',
+    3: '交通可达性',
+    4: '公共服务水平'
+}
+
+prop_neccessary = {
+    6: '总城市更新计划用地',
+    7: '总土地整备计划用地',
+    8: '总旧住宅区改居住用地',
+    9: '总旧工业区改居住用地'
+}
+
+tbl_weight_col = 1
+tbl_prop_col = 1
 
 class frmModelCal(QWidget, Ui_frmModelCal):
     def __init__(self, parent=None):
@@ -72,8 +91,10 @@ class frmModelCal(QWidget, Ui_frmModelCal):
 
         self.tbl_GridField.setEditTriggers(QAbstractItemView.NoEditTriggers)  # 不允许编辑
         self.tbl_PotentialLandField.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        # self.tbl_prop.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        # self.tbl_weight.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
-        self.validateValue()
+        # self.validateValue()
         self.bFirstShow = True
 
         self.input_qLayer_dict = {
@@ -116,8 +137,10 @@ class frmModelCal(QWidget, Ui_frmModelCal):
                 if not self.init_param_file(self.param_path):
                     return
                 self.use_params(self.param_path)
-            except:
+            except IOError:
                 log.error("{}被占用，请先关闭文件!".format(self.param_path))
+            except:
+                log.error(traceback.format_exc())
 
     def init_param_file(self, param_path):
         write = None
@@ -128,10 +151,6 @@ class frmModelCal(QWidget, Ui_frmModelCal):
                  {"Type": 7, "AREA": 0, 'R_Po_R': 0.05, 'Precision': 0.01, 'L_R_Po_R': 0.0495, 'R_R_Po_R': 0.0505},
                  {"Type": 8, "AREA": 0, 'R_Po_R': 0.1, 'Precision': 0.01, 'L_R_Po_R': 0.099, 'R_R_Po_R': 0.101},
                  {"Type": 9, "AREA": 0, 'R_Po_R': 0.3, 'Precision': 0.01, 'L_R_Po_R': 0.297, 'R_R_Po_R': 0.303}])
-            # df = pd.DataFrame([{"Type": 6,"AREA": 0, 'R_Po_R': 0.5, 'Precision': 0.01, 'L_R_Po_R': 0, 'R_R_Po_R': 0.505},
-            #                    {"Type": 7,"AREA": 0, 'R_Po_R': 0.05, 'Precision': 0.01, 'L_R_Po_R': 0, 'R_R_Po_R': 0.0505},
-            #                    {"Type": 8,"AREA": 0, 'R_Po_R': 0.1, 'Precision': 0.01, 'L_R_Po_R': 0, 'R_R_Po_R': 0.101},
-            #                    {"Type": 9,"AREA": 0, 'R_Po_R': 0.3, 'Precision': 0.01, 'L_R_Po_R': 0, 'R_R_Po_R': 0.303}])
             df.to_excel(write, sheet_name=model_config_params.Potential_Constraint, index=False)
 
             df = pd.DataFrame([{"Indicator": 'NetIncRPo', "Weight": 0.5},
@@ -151,112 +170,172 @@ class frmModelCal(QWidget, Ui_frmModelCal):
 
     def use_params(self, param_path):
         df = pd.read_excel(param_path, sheet_name=model_config_params.Potential_Constraint, header=0, index_col=0)
-        self.txt_type_csgx.setText(str(df.loc[6, 'R_Po_R']))
-        self.txt_type_tdzb.setText(str(df.loc[7, 'R_Po_R']))
-        self.txt_type_zzgjz.setText(str(df.loc[8, 'R_Po_R']))
-        self.txt_type_gygjz.setText(str(df.loc[9, 'R_Po_R']))
+        irow = 0
+        for k, v in prop_neccessary.items():
+            value = df.loc[k, 'R_Po_R']
+            new_item = QTableWidgetItem()
+            # new_item.setData(Qt.UserRole, float(value * 100))
+            new_item.setData(Qt.EditRole, str(value * 100) + '%')
+            self.tbl_prop.setItem(irow, tbl_prop_col, new_item)
+
+            irow += 1
+
         self.df_constraint = df
 
         df = pd.read_excel(param_path, sheet_name=model_config_params.IndicatorWeight)
-        self.txt_indicator_xzjjl.setText(str(df.loc[0, 'Weight']))
-        self.txt_indicator_ccjzl.setText(str(df.loc[1, 'Weight']))
-        self.txt_indicator_zzphzs.setText(str(df.loc[2, 'Weight']))
-        self.txt_indicator_jtkdx.setText(str(df.loc[3, 'Weight']))
-        self.txt_indicator_ggfwsp.setText(str(df.loc[4, 'Weight']))
+        irow = 0
+        for k, v in Weight_neccessary.items():
+            value = df.loc[k, 'Weight']
+            new_item = QTableWidgetItem(str(value))
+            self.tbl_weight.setItem(irow, tbl_weight_col, new_item)
+
+            irow += 1
+
         self.df_indicator_Weight = df
 
     def write_params_to_memory(self):
         # df1 = pd.read_excel(param_path, sheet_name=model_config_params.Potential_Constraint)
         # df2 = pd.read_excel(param_path, sheet_name=model_config_params.IndicatorWeight)
-        v = float(self.txt_type_csgx.text())
+        v = float(self.tbl_prop.item(0, tbl_prop_col).data(Qt.UserRole))
         precision = self.df_constraint.loc[6, 'Precision']
         self.df_constraint.loc[6, 'R_Po_R'] = v
         self.df_constraint.loc[6, 'L_R_Po_R'] = v - v * precision
         self.df_constraint.loc[6, 'R_R_Po_R'] = v + v * precision
 
-        v = float(self.txt_type_tdzb.text())
+        v = float(self.tbl_prop.item(1, tbl_prop_col).data(Qt.UserRole))
         precision = self.df_constraint.loc[7, 'Precision']
         self.df_constraint.loc[7, 'R_Po_R'] = v
         self.df_constraint.loc[7, 'L_R_Po_R'] = v - v * precision
         self.df_constraint.loc[7, 'R_R_Po_R'] = v + v * precision
 
-        v = float(self.txt_type_zzgjz.text())
+        v = float(self.tbl_prop.item(2, tbl_prop_col).data(Qt.UserRole))
         precision = self.df_constraint.loc[8, 'Precision']
         self.df_constraint.loc[8, 'R_Po_R'] = v
         self.df_constraint.loc[8, 'L_R_Po_R'] = v - v * precision
         self.df_constraint.loc[8, 'R_R_Po_R'] = v + v * precision
 
-        v = float(self.txt_type_gygjz.text())
+        v = float(self.tbl_prop.item(3, tbl_prop_col).data(Qt.UserRole))
         precision = self.df_constraint.loc[9, 'Precision']
         self.df_constraint.loc[9, 'R_Po_R'] = v
         self.df_constraint.loc[9, 'L_R_Po_R'] = v - v * precision
         self.df_constraint.loc[9, 'R_R_Po_R'] = v + v * precision
 
-        self.df_indicator_Weight.loc[0, 'Weight'] = float(self.txt_indicator_xzjjl.text())
-        self.df_indicator_Weight.loc[1, 'Weight'] = float(self.txt_indicator_ccjzl.text())
-        self.df_indicator_Weight.loc[2, 'Weight'] = float(self.txt_indicator_zzphzs.text())
-        self.df_indicator_Weight.loc[3, 'Weight'] = float(self.txt_indicator_jtkdx.text())
-        self.df_indicator_Weight.loc[4, 'Weight'] = float(self.txt_indicator_ggfwsp.text())
+        self.df_indicator_Weight.loc[0, 'Weight'] = float(self.tbl_weight.item(0, tbl_weight_col))
+        self.df_indicator_Weight.loc[1, 'Weight'] = float(self.tbl_weight.item(1, tbl_weight_col))
+        self.df_indicator_Weight.loc[2, 'Weight'] = float(self.tbl_weight.item(2, tbl_weight_col))
+        self.df_indicator_Weight.loc[3, 'Weight'] = float(self.tbl_weight.item(3, tbl_weight_col))
+        self.df_indicator_Weight.loc[4, 'Weight'] = float(self.tbl_weight.item(4, tbl_weight_col))
 
-    def write_params_to_file(self, param_path):
-        df1 = pd.read_excel(param_path, sheet_name=model_config_params.Potential_Constraint)
-        df2 = pd.read_excel(param_path, sheet_name=model_config_params.IndicatorWeight)
-
-        write = pd.ExcelWriter(param_path)
-
-        v = float(self.txt_type_csgx.text())
-        precision = df1.at[0, 'Precision']
-        df1.loc[0, 'R_Po_R'] = v
-        df1.loc[0, 'L_R_Po_R'] = v - v * precision
-        df1.loc[0, 'R_R_Po_R'] = v + v * precision
-
-        v = float(self.txt_type_tdzb.text())
-        precision = df1.at[1, 'Precision']
-        df1.loc[1, 'R_Po_R'] = v
-        df1.loc[1, 'L_R_Po_R'] = v - v * precision
-        df1.loc[1, 'R_R_Po_R'] = v + v * precision
-
-        v = float(self.txt_type_zzgjz.text())
-        precision = df1.at[2, 'Precision']
-        df1.loc[2, 'R_Po_R'] = v
-        df1.loc[2, 'L_R_Po_R'] = v - v * precision
-        df1.loc[2, 'R_R_Po_R'] = v + v * precision
-
-        v = float(self.txt_type_gygjz.text())
-        precision = df1.at[3, 'Precision']
-        df1.loc[3, 'R_Po_R'] = v
-        df1.loc[3, 'L_R_Po_R'] = v - v * precision
-        df1.loc[3, 'R_R_Po_R'] = v + v * precision
-
-        df2.loc[0, 'Weight'] = float(self.txt_indicator_xzjjl.text())
-        df2.loc[1, 'Weight'] = float(self.txt_indicator_ccjzl.text())
-        df2.loc[2, 'Weight'] = float(self.txt_indicator_zzphzs.text())
-        df2.loc[3, 'Weight'] = float(self.txt_indicator_jtkdx.text())
-        df2.loc[4, 'Weight'] = float(self.txt_indicator_ggfwsp.text())
-
-        df1.to_excel(write, sheet_name=model_config_params.Potential_Constraint, index=False)
-        df2.to_excel(write, sheet_name=model_config_params.IndicatorWeight, index=False)
-        write.close()
+    # def write_params_to_file(self, param_path):
+    #     df1 = pd.read_excel(param_path, sheet_name=model_config_params.Potential_Constraint)
+    #     df2 = pd.read_excel(param_path, sheet_name=model_config_params.IndicatorWeight)
+    #
+    #     write = pd.ExcelWriter(param_path)
+    #
+    #     v = float(self.txt_type_csgx.text())
+    #     precision = df1.at[0, 'Precision']
+    #     df1.loc[0, 'R_Po_R'] = v
+    #     df1.loc[0, 'L_R_Po_R'] = v - v * precision
+    #     df1.loc[0, 'R_R_Po_R'] = v + v * precision
+    #
+    #     v = float(self.txt_type_tdzb.text())
+    #     precision = df1.at[1, 'Precision']
+    #     df1.loc[1, 'R_Po_R'] = v
+    #     df1.loc[1, 'L_R_Po_R'] = v - v * precision
+    #     df1.loc[1, 'R_R_Po_R'] = v + v * precision
+    #
+    #     v = float(self.txt_type_zzgjz.text())
+    #     precision = df1.at[2, 'Precision']
+    #     df1.loc[2, 'R_Po_R'] = v
+    #     df1.loc[2, 'L_R_Po_R'] = v - v * precision
+    #     df1.loc[2, 'R_R_Po_R'] = v + v * precision
+    #
+    #     v = float(self.txt_type_gygjz.text())
+    #     precision = df1.at[3, 'Precision']
+    #     df1.loc[3, 'R_Po_R'] = v
+    #     df1.loc[3, 'L_R_Po_R'] = v - v * precision
+    #     df1.loc[3, 'R_R_Po_R'] = v + v * precision
+    #
+    #     df2.loc[0, 'Weight'] = float(self.txt_indicator_xzjjl.text())
+    #     df2.loc[1, 'Weight'] = float(self.txt_indicator_ccjzl.text())
+    #     df2.loc[2, 'Weight'] = float(self.txt_indicator_zzphzs.text())
+    #     df2.loc[3, 'Weight'] = float(self.txt_indicator_jtkdx.text())
+    #     df2.loc[4, 'Weight'] = float(self.txt_indicator_ggfwsp.text())
+    #
+    #     df1.to_excel(write, sheet_name=model_config_params.Potential_Constraint, index=False)
+    #     df2.to_excel(write, sheet_name=model_config_params.IndicatorWeight, index=False)
+    #     write.close()
 
     def showEvent(self, QShowEvent):
-        self.table_init(self.tbl_GridField)
-        self.table_init(self.tbl_PotentialLandField)
-
         if self.bFirstShow:
+            self.table_init(self.tbl_GridField, ["说明", "字段"], [0.45, 0.5])
+            self.table_init(self.tbl_PotentialLandField, ["说明", "字段"], [0.45, 0.5])
+            self.table_init_weight(self.tbl_weight)
+            self.table_init_prop(self.tbl_prop)
+
             self.init_model_param()
             self.bFirstShow = False
 
     def resizeEvent(self, QResizeEvent):
-        self.table_init(self.tbl_GridField)
-        self.table_init(self.tbl_PotentialLandField)
+        pass
+        # self.table_resize(self.tbl_GridField, [0.45, 0.5])
+        # self.table_resize(self.tbl_PotentialLandField, [0.45, 0.5])
+        # self.table_resize(self.tbl_weight, [0.7, 0.1, 0.2])
+        # self.table_resize(self.tbl_prop, [0.8, 0.15])
 
-    def table_init(self, tbl: QTableWidget):
-        tbl.setColumnCount(2)
-        tbl.setHorizontalHeaderLabels(["说明", "字段"])
+    def table_init_weight(self, tbl: QTableWidget):
+        self.table_init(self.tbl_weight, ["目标", "权重", "单项优化"], [0.7, 0.1, 0])
+        tbl.setRowCount(0)
+
+        irow = 0
+        for key, v in Weight_neccessary.items():
+            tbl.insertRow(irow)
+            newItem = QTableWidgetItem(v)
+            tbl.setItem(irow, 0, newItem)
+            widget = QWidget()
+            cbx = QCheckBox()
+            hlayout = QHBoxLayout(widget)
+            hlayout.addWidget(cbx)
+            hlayout.setAlignment(Qt.AlignCenter)
+            hlayout.setContentsMargins(0, 0, 0, 0)
+            cbx.setCheckState(Qt.Checked)
+            tbl.setCellWidget(irow, 2, widget)
+            irow += 1
+
+        tbl.setItemDelegateForColumn(0, NoEditableDelegate(tbl))  # 列不允许编辑
+        tbl.setItemDelegateForColumn(tbl_weight_col, InputLineEditDelegate(tbl))
+        # tbl.setItemDelegateForColumn(tbl_weight_col, SpinBoxDelegate(tbl))
+        table_default_style(tbl)
+
+    def table_init_prop(self, tbl: QTableWidget):
+        self.table_init(self.tbl_prop, ["类型", "使用率"], [0.8, 0.1])
+        tbl.setRowCount(0)
+
+        irow = 0
+        for key, v in prop_neccessary.items():
+            tbl.insertRow(irow)
+            newItem = QTableWidgetItem(v)
+            tbl.setItem(irow, 0, newItem)
+            irow += 1
+
+        tbl.setItemDelegateForColumn(0, NoEditableDelegate(tbl))  # 列不允许编辑
+        tbl.setItemDelegateForColumn(tbl_prop_col, SpinBoxDelegate(parent=tbl))
+
+        table_default_style(tbl)
+
+    def table_init(self, tbl: QTableWidget, header_labels, widths):
+        col_num = len(header_labels)
+        tbl.setColumnCount(col_num)
+        tbl.setHorizontalHeaderLabels(header_labels)
         tbl.horizontalHeader().setSectionsMovable(False)
-        # tbl.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        tbl.setColumnWidth(0, tbl.width() * 0.45)
-        tbl.setColumnWidth(1, tbl.width() * 0.5)
+        tbl.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        # for i in range(len(widths)):
+        #     tbl.setColumnWidth(i, tbl.width() * widths[i])
+        table_default_style(tbl)
+
+    def table_resize(self, tbl: QTableWidget, widths):
+        for i in range(len(widths)):
+            tbl.setColumnWidth(i, tbl.width() * widths[i])
 
     def sizeHint(self):
         return QSize(self.parent.width() * 0.3, self.parent.height())
@@ -502,52 +581,47 @@ class frmModelCal(QWidget, Ui_frmModelCal):
 
         return vfields
 
-    def validateValue(self):
+    # def validateValue(self):
         # doubleValidator = QDoubleValidator()
-        reg = QRegularExpression(r"^(0[\.][0-9]{1,2})|1$")
         # doubleValidator.setNotation(QDoubleValidator.StandardNotation)
-        doubleValidator = QRegularExpressionValidator()
-        doubleValidator.setRegularExpression(reg)
-        self.txt_type_gygjz.setValidator(doubleValidator)
-        self.txt_type_zzgjz.setValidator(doubleValidator)
-        self.txt_type_tdzb.setValidator(doubleValidator)
-        self.txt_type_csgx.setValidator(doubleValidator)
-
-        self.txt_indicator_ggfwsp.setValidator(doubleValidator)
-        self.txt_indicator_jtkdx.setValidator(doubleValidator)
-        self.txt_indicator_zzphzs.setValidator(doubleValidator)
-        self.txt_indicator_ccjzl.setValidator(doubleValidator)
-        self.txt_indicator_xzjjl.setValidator(doubleValidator)
+        # reg = QRegularExpression(r"^(0[\.][0-9]{1,2})|1$")
+        # doubleValidator = QRegularExpressionValidator()
+        # doubleValidator.setRegularExpression(reg)
+        # self.txt_type_gygjz.setValidator(doubleValidator)
+        # self.txt_type_zzgjz.setValidator(doubleValidator)
+        # self.txt_type_tdzb.setValidator(doubleValidator)
+        # self.txt_type_csgx.setValidator(doubleValidator)
+        #
+        # self.txt_indicator_ggfwsp.setValidator(doubleValidator)
+        # self.txt_indicator_jtkdx.setValidator(doubleValidator)
+        # self.txt_indicator_zzphzs.setValidator(doubleValidator)
+        # self.txt_indicator_ccjzl.setValidator(doubleValidator)
+        # self.txt_indicator_xzjjl.setValidator(doubleValidator)
 
     #  检查模型参数合规性
     def check_model_param(self):
-        # vTypeProp = {}
-        # vIndicatorWeight = {}
+        irow = 0
+        for v in prop_neccessary.values():
+            if str(self.tbl_prop.item(irow, 1)) == "":
+                raise IOError("{}使用率未设置！".format(v))
+            irow += 1
 
-        if self.txt_type_csgx == "":
-            raise IOError("城市更新计划用地比例未设置！")
-        if self.txt_type_tdzb == "":
-            raise IOError("土地整备计划用地比例未设置！")
-        if self.txt_type_zzgjz == "":
-            raise IOError("旧住宅区改居住用地比例未设置！")
-        if self.txt_type_gygjz == "":
-            raise IOError("旧工业区改居住用地比例未设置！")
+        irow = 0
+        for v in Weight_neccessary.values():
+            if str(self.tbl_weight.item(irow, tbl_weight_col)) == "":
+                raise IOError("{}权重未设置！".format(v))
+            irow += 1
 
-        # vTypeProp['csgx'] = float(self.txt_type_csgx.text())
-        # vTypeProp['tdzb'] = float(self.txt_type_tdzb.text())
-        # vTypeProp['zzgjz'] = float(self.txt_type_zzgjz.text())
-        # vTypeProp['gygjz'] = float(self.txt_type_gygjz.text())
-
-        if self.txt_indicator_xzjjl == "":
-            raise IOError("新增建筑量权重未设置！")
-        if self.txt_indicator_ccjzl == "":
-            raise IOError("拆除建筑量权重未设置！")
-        if self.txt_indicator_zzphzs == "":
-            raise IOError("职住平衡指数权重未设置！")
-        if self.txt_indicator_jtkdx == "":
-            raise IOError("交通可达性权重未设置！")
-        if self.txt_indicator_ggfwsp == "":
-            raise IOError("公共服务水平权重未设置！")
+        # if self.txt_indicator_xzjjl == "":
+        #     raise IOError("新增建筑量权重未设置！")
+        # if self.txt_indicator_ccjzl == "":
+        #     raise IOError("拆除建筑量权重未设置！")
+        # if self.txt_indicator_zzphzs == "":
+        #     raise IOError("职住平衡指数权重未设置！")
+        # if self.txt_indicator_jtkdx == "":
+        #     raise IOError("交通可达性权重未设置！")
+        # if self.txt_indicator_ggfwsp == "":
+        #     raise IOError("公共服务水平权重未设置！")
 
         # if float(self.txt_indicator_ggfwsp.text()) + float(self.txt_indicator_jtkdx.text()) + \
         #     float(self.txt_indicator_zzphzs.text()) + float(self.txt_indicator_xzjjl.text()) + \
@@ -596,6 +670,63 @@ class mComboBox(QComboBox):
 
     def wheelEvent(self, e: QtGui.QWheelEvent) -> None:
         return
+
+#  控制输入框
+class InputLineEditDelegate(QStyledItemDelegate):
+    def __init__(self, parent=None):
+        super(InputLineEditDelegate, self).__init__(parent)
+
+    def createEditor(self, parent, option, index):
+        editor = QLineEdit(parent)
+        editor.setFrame(False)
+        reg = QRegularExpression(r"^(0[\.][0-9]{1,2})|1$")
+        doubleValidator = QRegularExpressionValidator()
+        doubleValidator.setRegularExpression(reg)
+        editor.setValidator(doubleValidator)
+        return editor
+    
+    def setEditorData(self, editor: QWidget, index: QtCore.QModelIndex) -> None:
+        return super(InputLineEditDelegate, self).setEditorData(editor, index)
+
+
+#  百分比输入框
+class SpinBoxDelegate(QStyledItemDelegate):
+    def __init__(self, parent=None, decimals=2, suffix="%"):
+        super(SpinBoxDelegate, self).__init__(parent)
+        self.decimal = decimals
+        self.suffix = suffix
+
+    def createEditor(self, parent, option, index):
+        editor = QDoubleSpinBox(parent)
+        editor.setFrame(False)
+        editor.setMinimum(0)
+        editor.setMaximum(100)
+        editor.setDecimals(self.decimal)
+        editor.setSuffix(self.suffix)
+        return editor
+
+    def setModelData(self, editor: QWidget, model: QtCore.QAbstractItemModel, index: QtCore.QModelIndex) -> None:
+        if isinstance(editor, QDoubleSpinBox):
+            current_data = editor.textFromValue(editor.value()) + self.suffix
+            model.setData(index, current_data, Qt.EditRole)
+        else:
+            return super(SpinBoxDelegate, self).setModelData(editor, model, index)
+
+    def setEditorData(self, editor: QWidget, index: QtCore.QModelIndex) -> None:
+        if index.data() is not None:
+            current_data = index.data(Qt.EditRole)
+            if isinstance(current_data, str):
+                current_data = editor.valueFromText(current_data)
+            editor.setValue(float(current_data))
+        else:
+            return super(SpinBoxDelegate, self).setEditorData(editor, index)
+
+class NoEditableDelegate(QStyledItemDelegate):
+    def __init__(self, parent=None):
+        super(NoEditableDelegate, self).__init__(parent)
+
+    def createEditor(self, parent: QWidget, option: QStyleOptionViewItem, index: QModelIndex):
+        return None
 
 
 if __name__ == '__main__':
