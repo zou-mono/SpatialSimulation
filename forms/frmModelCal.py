@@ -174,8 +174,8 @@ class frmModelCal(QWidget, Ui_frmModelCal):
         for k, v in prop_neccessary.items():
             value = df.loc[k, 'R_Po_R']
             new_item = QTableWidgetItem()
-            # new_item.setData(Qt.UserRole, float(value * 100))
-            new_item.setData(Qt.EditRole, str(value * 100) + '%')
+            new_item.setData(Qt.UserRole, value)
+            new_item.setData(Qt.EditRole, '{:.2f}'.format(value * 100) + '%')
             self.tbl_prop.setItem(irow, tbl_prop_col, new_item)
 
             irow += 1
@@ -187,6 +187,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
         for k, v in Weight_neccessary.items():
             value = df.loc[k, 'Weight']
             new_item = QTableWidgetItem(str(value))
+            new_item.setData(Qt.UserRole, value)
             self.tbl_weight.setItem(irow, tbl_weight_col, new_item)
 
             irow += 1
@@ -196,35 +197,19 @@ class frmModelCal(QWidget, Ui_frmModelCal):
     def write_params_to_memory(self):
         # df1 = pd.read_excel(param_path, sheet_name=model_config_params.Potential_Constraint)
         # df2 = pd.read_excel(param_path, sheet_name=model_config_params.IndicatorWeight)
-        v = float(self.tbl_prop.item(0, tbl_prop_col).data(Qt.UserRole))
-        precision = self.df_constraint.loc[6, 'Precision']
-        self.df_constraint.loc[6, 'R_Po_R'] = v
-        self.df_constraint.loc[6, 'L_R_Po_R'] = v - v * precision
-        self.df_constraint.loc[6, 'R_R_Po_R'] = v + v * precision
+        irow = 0
+        for key, value in prop_neccessary.items():
+            v = float(self.tbl_prop.item(irow, tbl_prop_col).data(Qt.UserRole))
+            precision = self.df_constraint.loc[key, 'Precision']
+            self.df_constraint.loc[key, 'R_Po_R'] = v
+            self.df_constraint.loc[key, 'L_R_Po_R'] = v - v * precision
+            self.df_constraint.loc[key, 'R_R_Po_R'] = v + v * precision
+            irow += 1
 
-        v = float(self.tbl_prop.item(1, tbl_prop_col).data(Qt.UserRole))
-        precision = self.df_constraint.loc[7, 'Precision']
-        self.df_constraint.loc[7, 'R_Po_R'] = v
-        self.df_constraint.loc[7, 'L_R_Po_R'] = v - v * precision
-        self.df_constraint.loc[7, 'R_R_Po_R'] = v + v * precision
-
-        v = float(self.tbl_prop.item(2, tbl_prop_col).data(Qt.UserRole))
-        precision = self.df_constraint.loc[8, 'Precision']
-        self.df_constraint.loc[8, 'R_Po_R'] = v
-        self.df_constraint.loc[8, 'L_R_Po_R'] = v - v * precision
-        self.df_constraint.loc[8, 'R_R_Po_R'] = v + v * precision
-
-        v = float(self.tbl_prop.item(3, tbl_prop_col).data(Qt.UserRole))
-        precision = self.df_constraint.loc[9, 'Precision']
-        self.df_constraint.loc[9, 'R_Po_R'] = v
-        self.df_constraint.loc[9, 'L_R_Po_R'] = v - v * precision
-        self.df_constraint.loc[9, 'R_R_Po_R'] = v + v * precision
-
-        self.df_indicator_Weight.loc[0, 'Weight'] = float(self.tbl_weight.item(0, tbl_weight_col))
-        self.df_indicator_Weight.loc[1, 'Weight'] = float(self.tbl_weight.item(1, tbl_weight_col))
-        self.df_indicator_Weight.loc[2, 'Weight'] = float(self.tbl_weight.item(2, tbl_weight_col))
-        self.df_indicator_Weight.loc[3, 'Weight'] = float(self.tbl_weight.item(3, tbl_weight_col))
-        self.df_indicator_Weight.loc[4, 'Weight'] = float(self.tbl_weight.item(4, tbl_weight_col))
+        irow = 0
+        for key, value in Weight_neccessary.items():
+            self.df_indicator_Weight.loc[key, 'Weight'] = float(self.tbl_weight.item(irow, tbl_weight_col).data(Qt.UserRole))
+            irow += 1
 
     # def write_params_to_file(self, param_path):
     #     df1 = pd.read_excel(param_path, sheet_name=model_config_params.Potential_Constraint)
@@ -602,13 +587,13 @@ class frmModelCal(QWidget, Ui_frmModelCal):
     def check_model_param(self):
         irow = 0
         for v in prop_neccessary.values():
-            if str(self.tbl_prop.item(irow, 1)) == "":
+            if str(self.tbl_prop.item(irow, 1)).strip() == "":
                 raise IOError("{}使用率未设置！".format(v))
             irow += 1
 
         irow = 0
         for v in Weight_neccessary.values():
-            if str(self.tbl_weight.item(irow, tbl_weight_col)) == "":
+            if str(self.tbl_weight.item(irow, tbl_weight_col)).strip() == "":
                 raise IOError("{}权重未设置！".format(v))
             irow += 1
 
