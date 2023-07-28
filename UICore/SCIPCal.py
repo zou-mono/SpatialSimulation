@@ -22,6 +22,9 @@ type_filter = '''type=6 or type=7 or type=8 or type=9'''
 
 log = Log(__name__)
 
+sense_max = 'maximize'
+sense_min = 'minimize'
+
 #  模型类
 class Model:
     m_db = None
@@ -58,9 +61,21 @@ class Model:
         self.model = None
         self.model_res = None
 
+        self.obj_dict = {} # 用于存储单目标优化的目标函数, 结构： {变量名称{:变量, :sense}}
+
         global log
         if logClass is not None:
             log = logClass
+
+    def single_obj(self, name):
+        if self.obj_dict is not None:
+            if name in self.obj_dict:
+                return self.obj_dict[name]['obj'], self.obj_dict[name]['sense']
+            else:
+                return None, None
+        else:
+            return None, None
+
 
     def read_file(self, tbl_name):
         r = self.m_db.execute_dict(
@@ -165,6 +180,10 @@ class Model:
 
             #目标变量-拆迁量，负向指标，越小越好,
             self.x_I_DemoBld=model.addVar(vtype='C',name=model_config_params.Indicator_demo)
+            self.obj_dict[model_config_params.Indicator_demo] = {
+                'obj': self.x_I_DemoBld,
+                'sense': sense_min
+            }
             model.addCons(self.x_I_DemoBld==quicksum(x[i]*self.m_df_land.loc[i, self.name_CurBldAdj] for i in self.LandIDs))
             #中间变量
             self.x_I_CurRBld=model.addVar(vtype='C',name="Total current R building area")
@@ -176,6 +195,10 @@ class Model:
 
             #目标变量-轨道交通可达性评价变量，正向指标，越大越好，参与目标函数
             self.x_I_Acc=model.addVar(vtype="C",name=model_config_params.Indicator_acc)
+            self.obj_dict[model_config_params.Indicator_acc] = {
+                'obj': self.x_I_Acc,
+                'sense': sense_max
+            }
             a = {i: math.log(self.m_df_land.loc[i, self.name_r_po] + 1) * self.m_df_land.loc[i, self.name_MetroIf] for i in self.LandIDs}
             model.addCons(self.x_I_Acc==quicksum(x[i]*a[i] for i in self.LandIDs))
             # self.m_df_land.loc[:,"log_r_po"] = self.m_df_land[self.name_r_po].apply(math.log)
@@ -183,13 +206,22 @@ class Model:
 
             #目标变量-公共服务覆盖，正向指标，越大越好，参与目标函数
             self.x_I_PublicServe=model.addVar(vtype="C",name=model_config_params.Indicator_pubService)
+            self.obj_dict[model_config_params.Indicator_pubService] = {
+                'obj': self.x_I_PublicServe,
+                'sense': sense_max
+            }
             model.addCons(self.x_I_PublicServe==quicksum(x[i]*self.m_df_land.loc[i, self.name_PublicService] for i in self.LandIDs))
 
             #目标变量-纯新增建筑变量
             self.x_I_NetIncRPo=model.addVar(vtype="C",name=model_config_params.Indicator_net)
+            self.obj_dict[model_config_params.Indicator_net] = {
+                'obj': self.x_I_NetIncRPo,
+                'sense': sense_max
+            }
             model.addCons(self.x_I_NetIncRPo==self.x_I_PlanBld-self.x_I_CurRBld)
 
             self.model = model
+
             self.x = x
             return model
         except:
@@ -249,9 +281,9 @@ class Model:
             mini = 0
 
             if bMax:
-                maxi = self.model_opt("maximize", obj)
+                maxi = self.model_opt(sense_max, obj)
             if bMin:
-                mini = self.model_opt("minimize", obj)
+                mini = self.model_opt(sense_min, obj)
             if obj is None:
                 raise Exception("决策目标{}为空".format(name))
 
@@ -312,22 +344,27 @@ class Model:
             return None
 
     #  目标优化计算
-    def execute_obj(self, EvaObj=None, sense='maximize', w=None, io_field=model_layer_meta.name_io, bi_field=model_layer_meta.name_plabi):
-        if self.model is None:
-            return False
+    def execute_obj(self, EvaObj=None, sense=sense_max, w=None, io_field=model_layer_meta.name_io, bi_field=model_layer_meta.name_plabi):
+        try:
+            if self.model is None:
+                return False
 
-        sorted_inds, sols, sol_list = self.model_feasibles(EvaObj, sense, w)
+            sorted_inds, sols, sol_list = self.model_feasibles(EvaObj, sense, w)
 
-        if sols is None:
-            return False
-        else:
-            if self.model_res is None:
-                self.model_res = self.create_model_result()
-            self.model_res = self.export_result_to_temp(self.model_res, sorted_inds, sols, sol_list, io_field, bi_field)
-            return self.model_res
+            if sols is None:
+                return None
+            else:
+                if self.model_res is None:
+                    self.model_res = self.create_model_result()
+                self.model_res = self.export_result_to_temp(self.model_res, sorted_inds, sols, sol_list, io_field, bi_field)
+                return self.model_res
+        except:
+            return None
+        finally:
+            self.model.freeTransform()
 
     #  计算所有可行解，并根据TOPSIS算法选取最优解
-    def model_feasibles(self, obj, sense='minimize', w=None):
+    def model_feasibles(self, obj, sense=sense_min, w=None):
         if w is None:
             w = []
         self.model.setObjective(obj, sense)

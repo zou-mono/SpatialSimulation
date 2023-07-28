@@ -349,9 +349,8 @@ class frmModelCal(QWidget, Ui_frmModelCal):
                 self.txt_GridFile.setText("")
                 return
 
-            sty = get_qgis_style()
-            if sty is not None:
-                single_renderer(layer, color='%d, %d, %d' % (150, 150, 150), outline_color='#232323', opacity=0.2)
+            # sty = get_qgis_style()
+            single_renderer(layer, color='%d, %d, %d' % (150, 150, 150), outline_color='#232323', opacity=0.2)
 
             self.txt_GridFile.setText(fileName)
         except:

@@ -74,7 +74,6 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
 
                 # 这里的顺序是和Weight_neccessary一致的
                 w = df_indicator_Weight[model_layer_meta.name_weight].tolist()
-                # w = [v for v in vIndicatorWeight.values()]
                 log.info("开始模型优化计算...", color=success_log_color)
                 log.info("多目标模型优化计算...")
                 model.execute_obj(preset_params, w=w)
@@ -85,7 +84,11 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
                         if checkState:
                             single_key = row[model_layer_meta.name_indicator]
                             log.info("单目标模型优化计算:{}".format(indicator_translate_dict[single_key]))
-                            model_res = model.execute_obj(model.x_Unit_PlaBI, w=w)
+                            obj, sense = model.single_obj(single_key)
+                            io_field = model_layer_meta.name_io + "_" + str(index)
+                            bi_field = model_layer_meta.name_plabi + "_" + str(index)
+                            model.execute_obj(obj, sense, w, io_field=io_field, bi_field=bi_field)
+
                 ds_path = model.model_res.dataSource
                 log.info("模型优化计算完毕，结果导出至模型库{}.".format(os.path.abspath(ds_path)), color=success_log_color)
                 model.export_spatial_layer(ds_path)
