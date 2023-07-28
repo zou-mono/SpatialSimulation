@@ -146,10 +146,9 @@ class frmModelCal(QWidget, Ui_frmModelCal):
             for key, value in Weight_neccessary.items():
                 tList.append({
                     model_layer_meta.name_indicator: key,
-                    model_layer_meta.name_weight: 0.1
+                    model_layer_meta.name_weight: 0.2
                 })
 
-            tList[0]["Weight"] = 0.5
             df = pd.DataFrame(tList)
 
             # df = pd.DataFrame([{"Indicator": 'NetIncRPo', "Weight": 0.5},
@@ -189,7 +188,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
         for k in Weight_neccessary.keys():
             value = df.loc[k, 'Weight']
             new_item = QTableWidgetItem(str(value))
-            new_item.setData(Qt.UserRole, value)
+            new_item.setData(Qt.EditRole, value)
             self.tbl_weight.setItem(irow, tbl_weight_col, new_item)
 
             new_item = QTableWidgetItem()
@@ -232,7 +231,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
 
         irow = 0
         for key in Weight_neccessary.keys():
-            self.df_indicator_Weight.loc[key, 'Weight'] = float(self.tbl_weight.item(irow, tbl_weight_col).data(Qt.UserRole))
+            self.df_indicator_Weight.loc[key, 'Weight'] = float(self.tbl_weight.item(irow, tbl_weight_col).data(Qt.EditRole))
             self.df_indicator_Weight.loc[key, model_layer_meta.name_bSingleCal] = \
                 self.tbl_weight.item(irow, tbl_single_check_col).data(Qt.UserRole)
             irow += 1
