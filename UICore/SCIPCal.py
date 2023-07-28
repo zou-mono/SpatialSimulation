@@ -138,20 +138,20 @@ class Model:
 
             #增加四个决策变量，潜力使用比
             x_K6=model.addVar(vtype='C',
-                              lb=self.df_four_land_cons.loc[6,"L_R_Po_R"],
-                              ub=self.df_four_land_cons.loc[6,"R_R_Po_R"],
+                              lb=self.df_four_land_cons.loc[6, "L_R_Po_R"],
+                              ub=self.df_four_land_cons.loc[6, "R_R_Po_R"],
                               name="The 6th Land Ratio")
             x_K7=model.addVar(vtype='C',
-                              lb=self.df_four_land_cons.loc[7,"L_R_Po_R"],
-                              ub=self.df_four_land_cons.loc[7,"R_R_Po_R"],
+                              lb=self.df_four_land_cons.loc[7, "L_R_Po_R"],
+                              ub=self.df_four_land_cons.loc[7, "R_R_Po_R"],
                               name="The 7th Land Ratio")
             x_K8=model.addVar(vtype='C',
-                              lb=self.df_four_land_cons.loc[8,"L_R_Po_R"],
-                              ub=self.df_four_land_cons.loc[8,"R_R_Po_R"],
+                              lb=self.df_four_land_cons.loc[8, "L_R_Po_R"],
+                              ub=self.df_four_land_cons.loc[8, "R_R_Po_R"],
                               name="The 8th Land Ratio")
             x_K9=model.addVar(vtype='C',
-                              lb=self.df_four_land_cons.loc[9,"L_R_Po_R"],
-                              ub=self.df_four_land_cons.loc[9,"R_R_Po_R"],
+                              lb=self.df_four_land_cons.loc[9, "L_R_Po_R"],
+                              ub=self.df_four_land_cons.loc[9, "R_R_Po_R"],
                               name="The 9th Land Ratio")
 
             LandID_K, area = self.land_summary(6)

@@ -7,7 +7,7 @@ from osgeo import gdal, ogr
 from qgis._core import QgsVectorFileWriter, QgsProject
 
 from UICore.DataFactory import workspaceFactory
-from UICore.Gv import DataType, model_layer_meta
+from UICore.Gv import DataType, model_layer_meta, indicator_translate_dict
 from UICore.SCIPCal import Model
 from UICore.common import get_srs_id
 from UICore.log4p import Log
@@ -71,13 +71,19 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
             if bFlag:
                 preset_params = model.load_preset_params()
                 # log.info("模型预制参数载入成功！", color=success_log_color)
-                w = df_indicator_Weight['Weight'].tolist()
+                w = df_indicator_Weight[model_layer_meta.name_weight].tolist()
                 # w = [v for v in vIndicatorWeight.values()]
                 log.info("开始模型优化计算...", color=success_log_color)
                 log.info("多目标模型优化计算...")
                 model.execute_obj(preset_params, w=w)
-                log.info("单目标优化计算...")
-                # model_res = model.execute_obj(model.x_Unit_PlaBI, w=w)
+
+                if len(df_indicator_Weight.query('{}==True'.format(model_layer_meta.name_bSingleCal))) > 0:
+                    for index, row in df_indicator_Weight.iterrows():
+                        checkState = row[model_layer_meta.name_bSingleCal]
+                        if checkState:
+                            single_key = row[model_layer_meta.name_indicator]
+                            log.info("单目标模型优化计算:{}".format(indicator_translate_dict[single_key]))
+                            model_res = model.execute_obj(model.x_Unit_PlaBI, w=w)
                 ds_path = model.model_res.dataSource
                 log.info("模型优化计算完毕，结果导出至模型库{}.".format(os.path.abspath(ds_path)), color=success_log_color)
                 model.export_spatial_layer(ds_path)
@@ -109,7 +115,7 @@ def field_cal(dataSource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vP
 
     try:
         #  标准单元编号
-        create_new_field(lyr_Grid,  model_layer_meta.name_unitid, ogr.OFTInteger64)
+        create_new_field(lyr_Grid, model_layer_meta.name_unitid, ogr.OFTInteger64)
         exec_str = r"UPDATE {} SET {}=ROWID".format(lyr_name_Grid, model_layer_meta.name_unitid)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
@@ -211,7 +217,7 @@ def field_cal(dataSource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vP
             GROUP BY rid
         ) AS tbl_a WHERE c0.ROWID=tbl_a.rid'''.format(lyr_name_Grid, model_layer_meta.name_FixedAddRS, name_r_po,
                                                       name_CurRBld, model_layer_meta.name_layer_match,
-                                                     lyr_name_Grid, lyr_name_Grid)
+                                                      lyr_name_Grid, lyr_name_Grid)
 
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
@@ -251,7 +257,8 @@ def field_cal(dataSource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vP
                     )
                 ) as tlb_a where c0.rowid = tlb_a.rowid        
         '''.format(lyr_name_Grid, model_layer_meta.name_weight, CurPOP, CurJOB, model_layer_meta.name_zzphxs,
-                   model_layer_meta.name_zzphxs, model_layer_meta.name_zzphxs, model_layer_meta.name_zzphxs, lyr_name_Grid)
+                   model_layer_meta.name_zzphxs, model_layer_meta.name_zzphxs, model_layer_meta.name_zzphxs,
+                   lyr_name_Grid)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
     finally:
@@ -284,7 +291,7 @@ def create_temp_sqliteDB_by_qgis(layer, output_file, layer_name, bOpen=False):
     save_options.datasourceOptions = ["SPATIALITE=YES"]
     save_options.layerOptions = ["SPATIAL_INDEX=YES"]
     save_options.geometryType = "PROMOTE_TO_MULTI"
-    save_options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteLayer # Update mode
+    save_options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteLayer  # Update mode
     save_options.EditionCapability = QgsVectorFileWriter.CanAddNewLayer
     transform_context = QgsProject.instance().transformContext()
 
@@ -294,7 +301,7 @@ def create_temp_sqliteDB_by_qgis(layer, output_file, layer_name, bOpen=False):
                                                       save_options)
 
     if error[0] != QgsVectorFileWriter.NoError:
-        save_options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile  #Create mode
+        save_options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile  # Create mode
 
         error = QgsVectorFileWriter.writeAsVectorFormatV3(layer,
                                                           output_file,
@@ -310,6 +317,7 @@ def create_temp_sqliteDB_by_qgis(layer, output_file, layer_name, bOpen=False):
         return dataSource
     else:
         return None
+
 
 # 创建用于统计的临时数据库
 def create_temp_sqliteDB(temp_sqliteDB_path, temp_sqliteDB_name, in_path, layer_name, bOpen=False):
@@ -363,7 +371,6 @@ def CreateLayer(
         method_fields="ALL",
         opt=[],
 ):
-
     output_lyr = output_ds.CreateLayer(output_lyr_name, srs, geom_type, lco)
     if output_lyr is None:
         log.error('Cannot create layer "%s"' % output_lyr_name)
@@ -376,9 +383,9 @@ def CreateLayer(
     method_prefix = ""
     for val in opt:
         if val.lower().find("input_prefix=") == 0:
-            input_prefix = val[len("input_prefix=") :]
+            input_prefix = val[len("input_prefix="):]
         elif val.lower().find("method_prefix=") == 0:
-            method_prefix = val[len("method_prefix=") :]
+            method_prefix = val[len("method_prefix="):]
 
     if input_fields == "ALL":
         layer_defn = input_lyr.GetLayerDefn()

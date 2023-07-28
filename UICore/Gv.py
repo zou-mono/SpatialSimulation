@@ -35,6 +35,8 @@ class model_layer_meta():
     name_PublicService = "pubservice"
     name_result_io = "land_io"
     name_result_plabi = "UnitID_PlaBI"
+    name_bSingleCal = 'bSingleCal'  # 单目标是否计算字段
+    name_indicator = 'Indicator' #  指标字段的名称
 
 
 #  模型配置文件设置
@@ -61,6 +63,23 @@ indicator_translate_dict = {
     model_config_params.Indicator_bi: "职住平衡"
 }
 
+
+# 控制模型weight的顺序， key是顺序
+Weight_neccessary = {
+    0: '新增总居住建筑量',
+    1: '拆除总建筑量',
+    2: '职住平衡指数',
+    3: '交通可达性',
+    4: '公共服务水平'
+}
+
+# 控制模型的prop， key是用地type值
+prop_neccessary = {
+    6: '总城市更新计划用地',
+    7: '总土地整备计划用地',
+    8: '总旧住宅区改居住用地',
+    9: '总旧工业区改居住用地'
+}
 
 land_type_dict = {
     1: "已出让未建设居住用地",

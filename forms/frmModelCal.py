@@ -22,12 +22,13 @@ from UICore.common import get_qgis_style, get_field_index_no_case
 from UICore.log4p import Log
 from UICore.DataFactory import workspaceFactory
 from osgeo import ogr, gdal
-from UICore.Gv import DataType, model_config_params, model_layer_meta
+from UICore.Gv import DataType, model_config_params, model_layer_meta, Weight_neccessary, prop_neccessary
 from UICore.renderer import categrorized_renderer, single_renderer
 from UICore.styles import table_default_style
 from UICore.workerThread import ModelCalWorker
 
 from forms.frmModelBrowser import UI_ModelBrowser as frmModelBrowser
+from widgets.mTable import NoEditableDelegate, InputLineEditDelegate, SpinBoxDelegate, singleCheckStateDelegate
 
 Slot = QtCore.pyqtSlot
 
@@ -52,23 +53,9 @@ Potential_Land_neccessary_fields = {
     '可享用的公服面积': ['PubService', 'num']
 }
 
-Weight_neccessary = {
-    0: '新增总居住建筑量',
-    1: '拆除总建筑量',
-    2: '职住平衡指数',
-    3: '交通可达性',
-    4: '公共服务水平'
-}
-
-prop_neccessary = {
-    6: '总城市更新计划用地',
-    7: '总土地整备计划用地',
-    8: '总旧住宅区改居住用地',
-    9: '总旧工业区改居住用地'
-}
-
-tbl_weight_col = 1
-tbl_prop_col = 1
+tbl_weight_col = 1  # 评价权重列
+tbl_prop_col = 1  # 用地使用率列
+tbl_single_check_col = 2  # 单目标优化状态列
 
 class frmModelCal(QWidget, Ui_frmModelCal):
     def __init__(self, parent=None):
@@ -184,14 +171,24 @@ class frmModelCal(QWidget, Ui_frmModelCal):
 
         df = pd.read_excel(param_path, sheet_name=model_config_params.IndicatorWeight)
         irow = 0
+        checkStates = []
         for k, v in Weight_neccessary.items():
             value = df.loc[k, 'Weight']
             new_item = QTableWidgetItem(str(value))
             new_item.setData(Qt.UserRole, value)
             self.tbl_weight.setItem(irow, tbl_weight_col, new_item)
 
+            new_item = QTableWidgetItem()
+            new_item.setData(Qt.UserRole, True)
+            self.tbl_weight.setItem(irow, tbl_single_check_col, new_item)
+            checkStates.append(True)  # 初始化单目标优化全部选中
             irow += 1
 
+        for row in range(self.tbl_weight.model().rowCount()):
+            new_item = self.tbl_weight.item(row, tbl_single_check_col)
+            self.tbl_weight.openPersistentEditor(new_item)
+
+        df[model_layer_meta.name_bSingleCal] = checkStates  # 增加一列用于判断是否进行单目标优化
         self.df_indicator_Weight = df
 
     def write_params_to_memory(self):
@@ -209,6 +206,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
         irow = 0
         for key, value in Weight_neccessary.items():
             self.df_indicator_Weight.loc[key, 'Weight'] = float(self.tbl_weight.item(irow, tbl_weight_col).data(Qt.UserRole))
+            self.df_indicator_Weight.loc[key, model_layer_meta.name_bSingleCal] = self.tbl_weight.item(irow, tbl_single_check_col).data(Qt.UserRole)
             irow += 1
 
     # def write_params_to_file(self, param_path):
@@ -277,19 +275,25 @@ class frmModelCal(QWidget, Ui_frmModelCal):
             tbl.insertRow(irow)
             newItem = QTableWidgetItem(v)
             tbl.setItem(irow, 0, newItem)
-            widget = QWidget()
-            cbx = QCheckBox()
-            hlayout = QHBoxLayout(widget)
-            hlayout.addWidget(cbx)
-            hlayout.setAlignment(Qt.AlignCenter)
-            hlayout.setContentsMargins(0, 0, 0, 0)
-            cbx.setCheckState(Qt.Checked)
-            tbl.setCellWidget(irow, 2, widget)
+
+            # widget = QWidget()
+            # cbx = QCheckBox()
+            # hlayout = QHBoxLayout(widget)
+            # hlayout.addWidget(cbx)
+            # hlayout.setAlignment(Qt.AlignCenter)
+            # hlayout.setContentsMargins(0, 0, 0, 0)
+            # cbx.setCheckState(Qt.Checked)  # checkbox默认全部选中
+            # tbl.setCellWidget(irow, tbl_single_check_col, widget)
+            # newItem = QTableWidgetItem()
+            # newItem.setCheckState(Qt.Checked)
+            # newItem.setTextAlignment(Qt.AlignCenter)
+            # tbl.setItem(irow, tbl_single_check_col, newItem)
             irow += 1
 
         tbl.setItemDelegateForColumn(0, NoEditableDelegate(tbl))  # 列不允许编辑
         tbl.setItemDelegateForColumn(tbl_weight_col, InputLineEditDelegate(tbl))
-        # tbl.setItemDelegateForColumn(tbl_weight_col, SpinBoxDelegate(tbl))
+        tbl.setItemDelegateForColumn(tbl_single_check_col, singleCheckStateDelegate(tbl))
+
         table_default_style(tbl)
 
     def table_init_prop(self, tbl: QTableWidget):
@@ -483,6 +487,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
                 path_PotentialLand = self.txt_PotentialLandFile.text()
 
                 if path_Grid == "" or path_PotentialLand == "":
+                    log.warning("优化传导空间数据未设置，无法进行计算！")
                     return
 
                 wks = workspaceFactory().get_factory(DataType.shapefile)
@@ -566,23 +571,6 @@ class frmModelCal(QWidget, Ui_frmModelCal):
 
         return vfields
 
-    # def validateValue(self):
-        # doubleValidator = QDoubleValidator()
-        # doubleValidator.setNotation(QDoubleValidator.StandardNotation)
-        # reg = QRegularExpression(r"^(0[\.][0-9]{1,2})|1$")
-        # doubleValidator = QRegularExpressionValidator()
-        # doubleValidator.setRegularExpression(reg)
-        # self.txt_type_gygjz.setValidator(doubleValidator)
-        # self.txt_type_zzgjz.setValidator(doubleValidator)
-        # self.txt_type_tdzb.setValidator(doubleValidator)
-        # self.txt_type_csgx.setValidator(doubleValidator)
-        #
-        # self.txt_indicator_ggfwsp.setValidator(doubleValidator)
-        # self.txt_indicator_jtkdx.setValidator(doubleValidator)
-        # self.txt_indicator_zzphzs.setValidator(doubleValidator)
-        # self.txt_indicator_ccjzl.setValidator(doubleValidator)
-        # self.txt_indicator_xzjjl.setValidator(doubleValidator)
-
     #  检查模型参数合规性
     def check_model_param(self):
         irow = 0
@@ -596,30 +584,6 @@ class frmModelCal(QWidget, Ui_frmModelCal):
             if str(self.tbl_weight.item(irow, tbl_weight_col)).strip() == "":
                 raise IOError("{}权重未设置！".format(v))
             irow += 1
-
-        # if self.txt_indicator_xzjjl == "":
-        #     raise IOError("新增建筑量权重未设置！")
-        # if self.txt_indicator_ccjzl == "":
-        #     raise IOError("拆除建筑量权重未设置！")
-        # if self.txt_indicator_zzphzs == "":
-        #     raise IOError("职住平衡指数权重未设置！")
-        # if self.txt_indicator_jtkdx == "":
-        #     raise IOError("交通可达性权重未设置！")
-        # if self.txt_indicator_ggfwsp == "":
-        #     raise IOError("公共服务水平权重未设置！")
-
-        # if float(self.txt_indicator_ggfwsp.text()) + float(self.txt_indicator_jtkdx.text()) + \
-        #     float(self.txt_indicator_zzphzs.text()) + float(self.txt_indicator_xzjjl.text()) + \
-        #     float(self.txt_indicator_ccjzl.text()) != 1:
-        #     raise IOError("评价权重参数之和必须等于1，请重新调整！")
-
-        # vIndicatorWeight['xzjjl'] = float(self.txt_indicator_xzjjl.text())
-        # vIndicatorWeight['ccjzl'] = float(self.txt_indicator_ccjzl.text())
-        # vIndicatorWeight['zzphzs'] = float(self.txt_indicator_zzphzs.text())
-        # vIndicatorWeight['jtkdx'] = float(self.txt_indicator_jtkdx.text())
-        # vIndicatorWeight['ggfwsp'] = float(self.txt_indicator_ggfwsp.text())
-        #
-        # return vTypeProp, vIndicatorWeight
 
     def threadStop(self, bflag=True, model_res=None):
         self.thread.quit()
@@ -655,63 +619,6 @@ class mComboBox(QComboBox):
 
     def wheelEvent(self, e: QtGui.QWheelEvent) -> None:
         return
-
-#  控制输入框
-class InputLineEditDelegate(QStyledItemDelegate):
-    def __init__(self, parent=None):
-        super(InputLineEditDelegate, self).__init__(parent)
-
-    def createEditor(self, parent, option, index):
-        editor = QLineEdit(parent)
-        editor.setFrame(False)
-        reg = QRegularExpression(r"^(0[\.][0-9]{1,2})|1$")
-        doubleValidator = QRegularExpressionValidator()
-        doubleValidator.setRegularExpression(reg)
-        editor.setValidator(doubleValidator)
-        return editor
-    
-    def setEditorData(self, editor: QWidget, index: QtCore.QModelIndex) -> None:
-        return super(InputLineEditDelegate, self).setEditorData(editor, index)
-
-
-#  百分比输入框
-class SpinBoxDelegate(QStyledItemDelegate):
-    def __init__(self, parent=None, decimals=2, suffix="%"):
-        super(SpinBoxDelegate, self).__init__(parent)
-        self.decimal = decimals
-        self.suffix = suffix
-
-    def createEditor(self, parent, option, index):
-        editor = QDoubleSpinBox(parent)
-        editor.setFrame(False)
-        editor.setMinimum(0)
-        editor.setMaximum(100)
-        editor.setDecimals(self.decimal)
-        editor.setSuffix(self.suffix)
-        return editor
-
-    def setModelData(self, editor: QWidget, model: QtCore.QAbstractItemModel, index: QtCore.QModelIndex) -> None:
-        if isinstance(editor, QDoubleSpinBox):
-            current_data = editor.textFromValue(editor.value()) + self.suffix
-            model.setData(index, current_data, Qt.EditRole)
-        else:
-            return super(SpinBoxDelegate, self).setModelData(editor, model, index)
-
-    def setEditorData(self, editor: QWidget, index: QtCore.QModelIndex) -> None:
-        if index.data() is not None:
-            current_data = index.data(Qt.EditRole)
-            if isinstance(current_data, str):
-                current_data = editor.valueFromText(current_data)
-            editor.setValue(float(current_data))
-        else:
-            return super(SpinBoxDelegate, self).setEditorData(editor, index)
-
-class NoEditableDelegate(QStyledItemDelegate):
-    def __init__(self, parent=None):
-        super(NoEditableDelegate, self).__init__(parent)
-
-    def createEditor(self, parent: QWidget, option: QStyleOptionViewItem, index: QModelIndex):
-        return None
 
 
 if __name__ == '__main__':
