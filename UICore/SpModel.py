@@ -71,6 +71,8 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
             if bFlag:
                 preset_params = model.load_preset_params()
                 # log.info("模型预制参数载入成功！", color=success_log_color)
+
+                # 这里的顺序是和Weight_neccessary一致的
                 w = df_indicator_Weight[model_layer_meta.name_weight].tolist()
                 # w = [v for v in vIndicatorWeight.values()]
                 log.info("开始模型优化计算...", color=success_log_color)

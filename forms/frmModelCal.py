@@ -140,11 +140,21 @@ class frmModelCal(QWidget, Ui_frmModelCal):
                  {"Type": 9, "AREA": 0, 'R_Po_R': 0.3, 'Precision': 0.01, 'L_R_Po_R': 0.297, 'R_R_Po_R': 0.303}])
             df.to_excel(write, sheet_name=model_config_params.Potential_Constraint, index=False)
 
-            df = pd.DataFrame([{"Indicator": 'NetIncRPo', "Weight": 0.5},
-                               {"Indicator": 'DemoBld', "Weight": 0.1},
-                               {"Indicator": 'Acc', "Weight": 0.1},
-                               {"Indicator": 'PublicService', "Weight": 0.1},
-                               {"Indicator": 'BI', "Weight": 0.1}])
+            tList = []
+            for key, value in Weight_neccessary.items():
+                tList.append({
+                    model_layer_meta.name_indicator: value[1],
+                    model_layer_meta.name_weight: 0.1
+                })
+
+            tList[0]["Weight"] = 0.5
+            df = pd.DataFrame(tList)
+
+            # df = pd.DataFrame([{"Indicator": 'NetIncRPo', "Weight": 0.5},
+            #                    {"Indicator": 'DemoBld', "Weight": 0.1},
+            #                    {"Indicator": 'Acc', "Weight": 0.1},
+            #                    {"Indicator": 'PublicService', "Weight": 0.1},
+            #                    {"Indicator": 'BI', "Weight": 0.1}])
             df.to_excel(write, sheet_name=model_config_params.IndicatorWeight, index=False)
 
             return True
@@ -172,7 +182,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
         df = pd.read_excel(param_path, sheet_name=model_config_params.IndicatorWeight)
         irow = 0
         checkStates = []
-        for k, v in Weight_neccessary.items():
+        for k in Weight_neccessary.keys():
             value = df.loc[k, 'Weight']
             new_item = QTableWidgetItem(str(value))
             new_item.setData(Qt.UserRole, value)
@@ -204,9 +214,10 @@ class frmModelCal(QWidget, Ui_frmModelCal):
             irow += 1
 
         irow = 0
-        for key, value in Weight_neccessary.items():
+        for key in Weight_neccessary.keys():
             self.df_indicator_Weight.loc[key, 'Weight'] = float(self.tbl_weight.item(irow, tbl_weight_col).data(Qt.UserRole))
-            self.df_indicator_Weight.loc[key, model_layer_meta.name_bSingleCal] = self.tbl_weight.item(irow, tbl_single_check_col).data(Qt.UserRole)
+            self.df_indicator_Weight.loc[key, model_layer_meta.name_bSingleCal] = \
+                self.tbl_weight.item(irow, tbl_single_check_col).data(Qt.UserRole)
             irow += 1
 
     # def write_params_to_file(self, param_path):
@@ -273,7 +284,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
         irow = 0
         for key, v in Weight_neccessary.items():
             tbl.insertRow(irow)
-            newItem = QTableWidgetItem(v)
+            newItem = QTableWidgetItem(v[0])
             tbl.setItem(irow, 0, newItem)
 
             # widget = QWidget()
@@ -582,7 +593,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
         irow = 0
         for v in Weight_neccessary.values():
             if str(self.tbl_weight.item(irow, tbl_weight_col)).strip() == "":
-                raise IOError("{}权重未设置！".format(v))
+                raise IOError("{}权重未设置！".format(v[0]))
             irow += 1
 
     def threadStop(self, bflag=True, model_res=None):

@@ -349,6 +349,8 @@ class Model:
                 BI = 1 / sols[i][self.x_Unit_PlaBI[j]]
                 if 0.3 < BI < 2:
                     BI_Score = BI_Score + self.m_df_grid.loc[j, 'Unit_BI_WT'] * self.m_df_grid.loc[j, 'Unit_IN']
+
+            # 这里是顺序必须要和Weight_neccessary保持一致
             sol_list.append([sols[i][self.x_I_NetIncRPo],
                              sols[i][self.x_I_DemoBld],
                              sols[i][self.x_I_Acc],

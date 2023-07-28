@@ -29,7 +29,7 @@ class model_layer_meta():
     name_type = "type"
     name_r_po = "r_po"
     name_io = "IO"
-    name_plabi = "PlaBI"
+    name_plabi = "PBI"
     name_CurBldAdj = "CurBldAdj"
     name_MetroIF = "Metro_IF"
     name_PublicService = "pubservice"
@@ -48,10 +48,10 @@ class model_config_params():
     param_file = r"params.xlsx"
     result_folder = "res"  # 输出结果文件的位置
     # result_libs = "result_libs"  # 存放模型运算结果的档案数据库
-    Indicator_net = "Total net increase R building"  # 净增长变量名称
-    Indicator_demo = "Total demolish building area"  # 拆除变量名称
-    Indicator_acc = "Total Metro cover buidling area"  # 轨道覆盖变量名称
-    Indicator_pubService = "Total cover public service area"  # 公共服务名称
+    Indicator_net = "NetIncRPo"  # 净增长变量名称
+    Indicator_demo = "DemoBld"  # 拆除变量名称
+    Indicator_acc = "Acc"  # 轨道覆盖变量名称
+    Indicator_pubService = "PublicService"  # 公共服务名称
     Indicator_bi = "BI"  # 职住平衡名称
 
 
@@ -63,14 +63,14 @@ indicator_translate_dict = {
     model_config_params.Indicator_bi: "职住平衡"
 }
 
-
-# 控制模型weight的顺序， key是顺序
+# 控制模型weight的顺序， 对后续模型矩阵运算影响很大
+# key是顺序，同时也是区分结果图层中io,plabi字段的序号
 Weight_neccessary = {
-    0: '新增总居住建筑量',
-    1: '拆除总建筑量',
-    2: '职住平衡指数',
-    3: '交通可达性',
-    4: '公共服务水平'
+    0: ['新增总居住建筑量', model_config_params.Indicator_net],
+    1: ['拆除总建筑量', model_config_params.Indicator_demo],
+    2: ['职住平衡指数', model_config_params.Indicator_bi],
+    3: ['交通可达性', model_config_params.Indicator_acc],
+    4: ['公共服务水平', model_config_params.Indicator_pubService]
 }
 
 # 控制模型的prop， key是用地type值
