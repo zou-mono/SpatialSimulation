@@ -30,13 +30,17 @@ class CenterCheckBox(QWidget):
 
 
 class singleCheckStateDelegate(QStyledItemDelegate):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, exclude_row=[]):
+        self.exclude_row = exclude_row
         super(singleCheckStateDelegate, self).__init__(parent)
 
     def createEditor(self, parent: QWidget, option: 'QStyleOptionViewItem', index: QtCore.QModelIndex) -> QWidget:
-        check = CenterCheckBox(parent)
-        check.toggled.connect(lambda: self.commitData.emit(check))
-        return check
+        if index.row() not in self.exclude_row:
+            check = CenterCheckBox(parent)
+            check.toggled.connect(lambda: self.commitData.emit(check))
+            return check
+        else:
+            return None
     
     def setEditorData(self, editor: QWidget, index: QtCore.QModelIndex) -> None:
         if index.data(Qt.UserRole) is not None:
@@ -49,7 +53,7 @@ class singleCheckStateDelegate(QStyledItemDelegate):
             current_data = editor.checkState
             model.setData(index, current_data, Qt.UserRole)
         # return super(singleCheckStateDelegate, self).setModelData(editor, model, index)
-     
+
 
 # 可以控制LineEdit的输入
 class InputLineEditDelegate(QStyledItemDelegate):

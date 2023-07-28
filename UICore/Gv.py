@@ -65,12 +65,13 @@ indicator_translate_dict = {
 
 # 控制模型weight的顺序， 对后续模型矩阵运算影响很大
 # key是顺序，同时也是区分结果图层中io,plabi字段的序号
+# 第三列表示是否可以参与单目标优化运算
 Weight_neccessary = {
-    0: ['新增总居住建筑量', model_config_params.Indicator_net],
-    1: ['拆除总建筑量', model_config_params.Indicator_demo],
-    2: ['职住平衡指数', model_config_params.Indicator_bi],
-    3: ['交通可达性', model_config_params.Indicator_acc],
-    4: ['公共服务水平', model_config_params.Indicator_pubService]
+    model_config_params.Indicator_net: ['新增总居住建筑量', 0, True],
+    model_config_params.Indicator_demo: ['拆除总建筑量', 1, True],
+    model_config_params.Indicator_acc: ['交通可达性', 2, True],
+    model_config_params.Indicator_pubService: ['公共服务水平', 3, True],
+    model_config_params.Indicator_bi: ['职住平衡指数', 4, False]
 }
 
 # 控制模型的prop， key是用地type值
@@ -87,10 +88,10 @@ land_type_dict = {
     3: "已批土地整备规划居住用地",
     4: "已批棚户区规划居住用地",
     5: "法定图则规划居住用地",
-    6: "城市更新计划",
-    7: "土地整备计划",
-    8: "旧住宅区改居住",
-    9: "旧工业区改居住",
+    6: "城市更新计划用地",
+    7: "土地整备计划用地",
+    8: "旧住宅区改居住用地",
+    9: "旧工业区改居住用地",
     10: "详规一张图商改居住潜力",
     11: "详规一张图工改居住潜力",
     12: "详规一张图发展备用地转居住",

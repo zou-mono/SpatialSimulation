@@ -13,6 +13,7 @@ from PyQt5 import QtCore, QtGui
 import sys
 
 import pandas as pd
+from pandas import DataFrame
 from qgis._core import QgsVectorLayer, QgsProject, QgsVectorFileWriter, QgsStyle, QgsSymbol, QgsSimpleFillSymbolLayer, \
     QgsSingleSymbolRenderer, QgsRendererCategory, QgsCategorizedSymbolRenderer
 
@@ -56,6 +57,7 @@ Potential_Land_neccessary_fields = {
 tbl_weight_col = 1  # 评价权重列
 tbl_prop_col = 1  # 用地使用率列
 tbl_single_check_col = 2  # 单目标优化状态列
+exclude_single_row = []  # 不参与单目标优化的行
 
 class frmModelCal(QWidget, Ui_frmModelCal):
     def __init__(self, parent=None):
@@ -143,7 +145,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
             tList = []
             for key, value in Weight_neccessary.items():
                 tList.append({
-                    model_layer_meta.name_indicator: value[1],
+                    model_layer_meta.name_indicator: key,
                     model_layer_meta.name_weight: 0.1
                 })
 
@@ -166,7 +168,8 @@ class frmModelCal(QWidget, Ui_frmModelCal):
                 write.close()
 
     def use_params(self, param_path):
-        df = pd.read_excel(param_path, sheet_name=model_config_params.Potential_Constraint, header=0, index_col=0)
+        df = pd.read_excel(param_path, sheet_name=model_config_params.Potential_Constraint, header=0, index_col='Type')
+        df = self.launder_df_order(df, prop_neccessary)
         irow = 0
         for k, v in prop_neccessary.items():
             value = df.loc[k, 'R_Po_R']
@@ -179,7 +182,8 @@ class frmModelCal(QWidget, Ui_frmModelCal):
 
         self.df_constraint = df
 
-        df = pd.read_excel(param_path, sheet_name=model_config_params.IndicatorWeight)
+        df = pd.read_excel(param_path, sheet_name=model_config_params.IndicatorWeight, index_col='Indicator')
+        df = self.launder_df_order(df, Weight_neccessary)
         irow = 0
         checkStates = []
         for k in Weight_neccessary.keys():
@@ -189,17 +193,30 @@ class frmModelCal(QWidget, Ui_frmModelCal):
             self.tbl_weight.setItem(irow, tbl_weight_col, new_item)
 
             new_item = QTableWidgetItem()
-            new_item.setData(Qt.UserRole, True)
+            if irow not in exclude_single_row:
+                new_item.setData(Qt.UserRole, True)
+                checkStates.append(True)  # 初始化单目标优化全部选中
+            else:
+                new_item.setData(Qt.UserRole, False)
+                checkStates.append(False)  # 被排除的单目标不选中
             self.tbl_weight.setItem(irow, tbl_single_check_col, new_item)
-            checkStates.append(True)  # 初始化单目标优化全部选中
+
             irow += 1
 
+        #  checkbox一直显示在tbl中
         for row in range(self.tbl_weight.model().rowCount()):
             new_item = self.tbl_weight.item(row, tbl_single_check_col)
             self.tbl_weight.openPersistentEditor(new_item)
 
         df[model_layer_meta.name_bSingleCal] = checkStates  # 增加一列用于判断是否进行单目标优化
         self.df_indicator_Weight = df
+
+    # 将从excel读取的df顺序和设定字典顺序一致
+    def launder_df_order(self, df: DataFrame, dict_: dict):
+        new_df = pd.DataFrame(index=dict_.keys(), columns=df.columns)
+        for key in dict_.keys():
+            new_df.loc[key] = df.loc[key]
+        return new_df
 
     def write_params_to_memory(self):
         # df1 = pd.read_excel(param_path, sheet_name=model_config_params.Potential_Constraint)
@@ -282,28 +299,19 @@ class frmModelCal(QWidget, Ui_frmModelCal):
         tbl.setRowCount(0)
 
         irow = 0
+        global exclude_single_row
+        exclude_single_row = []
         for key, v in Weight_neccessary.items():
             tbl.insertRow(irow)
             newItem = QTableWidgetItem(v[0])
             tbl.setItem(irow, 0, newItem)
-
-            # widget = QWidget()
-            # cbx = QCheckBox()
-            # hlayout = QHBoxLayout(widget)
-            # hlayout.addWidget(cbx)
-            # hlayout.setAlignment(Qt.AlignCenter)
-            # hlayout.setContentsMargins(0, 0, 0, 0)
-            # cbx.setCheckState(Qt.Checked)  # checkbox默认全部选中
-            # tbl.setCellWidget(irow, tbl_single_check_col, widget)
-            # newItem = QTableWidgetItem()
-            # newItem.setCheckState(Qt.Checked)
-            # newItem.setTextAlignment(Qt.AlignCenter)
-            # tbl.setItem(irow, tbl_single_check_col, newItem)
+            if not v[2]:
+                exclude_single_row.append(irow)
             irow += 1
 
         tbl.setItemDelegateForColumn(0, NoEditableDelegate(tbl))  # 列不允许编辑
         tbl.setItemDelegateForColumn(tbl_weight_col, InputLineEditDelegate(tbl))
-        tbl.setItemDelegateForColumn(tbl_single_check_col, singleCheckStateDelegate(tbl))
+        tbl.setItemDelegateForColumn(tbl_single_check_col, singleCheckStateDelegate(tbl, exclude_single_row))
 
         table_default_style(tbl)
 
@@ -497,8 +505,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
                 path_PotentialLand = self.txt_PotentialLandFile.text()
 
                 if path_Grid == "" or path_PotentialLand == "":
-                    log.warning("优化传导空间数据未设置，无法进行计算！")
-                    return
+                    raise IOError("优化传导空间数据未设置！")
 
                 wks = workspaceFactory().get_factory(DataType.shapefile)
 
