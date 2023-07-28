@@ -60,7 +60,7 @@ class InputLineEditDelegate(QStyledItemDelegate):
     def __init__(self, parent=None):
         super(InputLineEditDelegate, self).__init__(parent)
 
-    def createEditor(self, parent, option, index):
+    def createEditor(self, parent: QWidget, option: 'QStyleOptionViewItem', index: QtCore.QModelIndex) -> QWidget:
         editor = QLineEdit(parent)
         editor.setFrame(False)
         reg = QRegularExpression(r"^(0[\.][0-9]{1,2})|1$")
@@ -75,19 +75,24 @@ class InputLineEditDelegate(QStyledItemDelegate):
 
 #  百分比输入框
 class SpinBoxDelegate(QStyledItemDelegate):
-    def __init__(self, parent=None, decimals=2, suffix="%"):
+    def __init__(self, parent=None, decimals=2, suffix="%", exclude_row=[]):
         super(SpinBoxDelegate, self).__init__(parent)
         self.decimal = decimals
         self.suffix = suffix
+        self.exclude_row = exclude_row
 
     def createEditor(self, parent, option, index):
-        editor = QDoubleSpinBox(parent)
-        editor.setFrame(False)
-        editor.setMinimum(0)
-        editor.setMaximum(100)
-        editor.setDecimals(self.decimal)
-        editor.setSuffix(self.suffix)
-        return editor
+        if index.row() not in self.exclude_row:
+            editor = QDoubleSpinBox(parent)
+            editor.setFrame(False)
+            editor.setMinimum(0)
+            editor.setMaximum(100)
+            editor.setDecimals(self.decimal)
+            editor.setSuffix(self.suffix)
+            return editor
+        else:
+            return None
+            # return super(SpinBoxDelegate, self).createEditor(parent, option, index)
 
     def setModelData(self, editor: QWidget, model: QAbstractItemModel, index: QModelIndex) -> None:
         if isinstance(editor, QDoubleSpinBox):
@@ -98,10 +103,11 @@ class SpinBoxDelegate(QStyledItemDelegate):
 
     def setEditorData(self, editor: QWidget, index: QModelIndex) -> None:
         if index.data() is not None:
-            current_data = index.data(Qt.EditRole)
-            if isinstance(current_data, str):
-                current_data = editor.valueFromText(current_data)
-            editor.setValue(float(current_data))
+            if isinstance(editor, QDoubleSpinBox):
+                current_data = index.data(Qt.EditRole)
+                if isinstance(current_data, str):
+                    current_data = editor.valueFromText(current_data)
+                editor.setValue(float(current_data))
         else:
             return super(SpinBoxDelegate, self).setEditorData(editor, index)
 

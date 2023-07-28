@@ -23,7 +23,8 @@ from UICore.common import get_qgis_style, get_field_index_no_case
 from UICore.log4p import Log
 from UICore.DataFactory import workspaceFactory
 from osgeo import ogr, gdal
-from UICore.Gv import DataType, model_config_params, model_layer_meta, Weight_neccessary, prop_neccessary
+from UICore.Gv import DataType, model_config_params, model_layer_meta, Weight_neccessary, prop_neccessary, \
+    land_type_dict
 from UICore.renderer import categrorized_renderer, single_renderer
 from UICore.styles import table_default_style
 from UICore.workerThread import ModelCalWorker
@@ -170,8 +171,11 @@ class frmModelCal(QWidget, Ui_frmModelCal):
         df = pd.read_excel(param_path, sheet_name=model_config_params.Potential_Constraint, header=0, index_col='Type')
         df = self.launder_df_order(df, prop_neccessary)
         irow = 0
-        for k, v in prop_neccessary.items():
-            value = df.loc[k, 'R_Po_R']
+        for k, v in land_type_dict.items():
+            if k in df.index:
+                value = df.loc[k, 'R_Po_R']
+            else:   # 除了四类之外的其他类型比例全部设置为1，且不能编辑
+                value = 1
             new_item = QTableWidgetItem()
             new_item.setData(Qt.UserRole, value)
             new_item.setData(Qt.EditRole, '{:.2f}'.format(value * 100) + '%')
@@ -319,14 +323,15 @@ class frmModelCal(QWidget, Ui_frmModelCal):
         tbl.setRowCount(0)
 
         irow = 0
-        for key, v in prop_neccessary.items():
+        for key, v in land_type_dict.items():
             tbl.insertRow(irow)
             newItem = QTableWidgetItem(v)
             tbl.setItem(irow, 0, newItem)
             irow += 1
 
         tbl.setItemDelegateForColumn(0, NoEditableDelegate(tbl))  # 列不允许编辑
-        tbl.setItemDelegateForColumn(tbl_prop_col, SpinBoxDelegate(parent=tbl))
+        tbl.setItemDelegateForColumn(tbl_prop_col,
+                                     SpinBoxDelegate(parent=tbl, exclude_row=range(4, len(land_type_dict) - 3, 1)))
 
         table_default_style(tbl)
 
