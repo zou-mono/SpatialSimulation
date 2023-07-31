@@ -48,13 +48,14 @@ class Model:
         self.name_plabi = model_layer_meta.name_plabi.lower()
         self.name_io = model_layer_meta.name_io.lower()
 
-    def __init__(self, model_name, db_name, df_constraint, logClass=None):
+    def __init__(self, model_name, db_name, df_indicator_Weight, df_constraint, logClass=None):
         self.db_name = db_name
         self.m_db = Sqlite(self.db_name)
         self.get_field_names()
         self.model_name = model_name
 
-        self.df_four_land_cons = df_constraint
+        self.df_constraint = df_constraint
+        self.df_weight = df_indicator_Weight
         # self.df_four_land_cons = read_excel(params_file, sheet_name=model_config_params.Potential_Constraint,header=0,index_col=0)  # 第一列设为索引
         self.m_df_land = self.read_file(self.name_layer_PotentialLand)
         self.m_df_match = self.read_file(self.name_layer_match)
@@ -66,6 +67,21 @@ class Model:
         global log
         if logClass is not None:
             log = logClass
+
+    #  针对每个目标求解的综合评分
+    def overall(self):
+        for sol_key, sol_value in self.model_res.score.items():
+            self.df_weight['score'] = -1
+            sol_value = sol_value['current']
+            for k, v in sol_value.items():
+                cur_score = (v - self.model_res.ranges[k][0]) / \
+                            (self.model_res.ranges[k][1] - self.model_res.ranges[k][0])
+                self.df_weight.loc[k, 'score'] = cur_score
+
+            sol_score = (self.df_weight.loc[:, 'score'] * self.df_weight.loc[:, model_layer_meta.name_weight]).sum() / \
+                        self.df_weight.loc[:, model_layer_meta.name_weight].sum()
+
+            self.model_res.score[sol_key]['overall'] = round(sol_score * 100, 2)
 
     def single_obj(self, name):
         if self.obj_dict is not None:
@@ -153,20 +169,20 @@ class Model:
 
             #增加四个决策变量，潜力使用比
             x_K6=model.addVar(vtype='C',
-                              lb=self.df_four_land_cons.loc[6, "L_R_Po_R"],
-                              ub=self.df_four_land_cons.loc[6, "R_R_Po_R"],
+                              lb=self.df_constraint.loc[6, "L_R_Po_R"],
+                              ub=self.df_constraint.loc[6, "R_R_Po_R"],
                               name="The 6th Land Ratio")
             x_K7=model.addVar(vtype='C',
-                              lb=self.df_four_land_cons.loc[7, "L_R_Po_R"],
-                              ub=self.df_four_land_cons.loc[7, "R_R_Po_R"],
+                              lb=self.df_constraint.loc[7, "L_R_Po_R"],
+                              ub=self.df_constraint.loc[7, "R_R_Po_R"],
                               name="The 7th Land Ratio")
             x_K8=model.addVar(vtype='C',
-                              lb=self.df_four_land_cons.loc[8, "L_R_Po_R"],
-                              ub=self.df_four_land_cons.loc[8, "R_R_Po_R"],
+                              lb=self.df_constraint.loc[8, "L_R_Po_R"],
+                              ub=self.df_constraint.loc[8, "R_R_Po_R"],
                               name="The 8th Land Ratio")
             x_K9=model.addVar(vtype='C',
-                              lb=self.df_four_land_cons.loc[9, "L_R_Po_R"],
-                              ub=self.df_four_land_cons.loc[9, "R_R_Po_R"],
+                              lb=self.df_constraint.loc[9, "L_R_Po_R"],
+                              ub=self.df_constraint.loc[9, "R_R_Po_R"],
                               name="The 9th Land Ratio")
 
             LandID_K, area = self.land_summary(6)
@@ -344,7 +360,9 @@ class Model:
             return None
 
     #  目标优化计算
-    def execute_obj(self, EvaObj=None, sense=sense_max, w=None, io_field=model_layer_meta.name_io, bi_field=model_layer_meta.name_plabi):
+    #  type='multiple'表示多目标优化，type='s_{name}'为具体name的单目标优化
+    def execute_obj(self, type='multiple', EvaObj=None, sense=sense_max, w=None,
+                    io_field=model_layer_meta.name_io.lower(), bi_field=model_layer_meta.name_plabi.lower()):
         try:
             if self.model is None:
                 return False
@@ -356,8 +374,9 @@ class Model:
             else:
                 if self.model_res is None:
                     self.model_res = self.create_model_result()
-                self.model_res = self.export_result_to_temp(self.model_res, sorted_inds, sols, sol_list, io_field, bi_field)
-                return self.model_res
+                self.model_res = self.export_result_to_temp(type, self.model_res, sorted_inds, sols,
+                                                            sol_list, io_field, bi_field)
+            return self.model_res
         except:
             return None
         finally:
@@ -435,12 +454,42 @@ class Model:
 
         res.dataSource = ds_path
 
+        #  net increase变量的极值范围
+        max_ = (self.m_df_land[self.name_r_po] - self.m_df_land[self.name_CurRBld]).map(
+            lambda x: 0 if x < 0 else x
+        ).sum()
+        res.ranges[model_config_params.Indicator_net] = [0, max_]
+
+        #  demolish变量的极值范围
+        min_ = self.m_df_land[self.name_CurRBld].sum() * -1
+        res.ranges[model_config_params.Indicator_demo] = [min_, 0]
+
+        #  acc变量的极值范围
+        max_ = self.m_df_land.query('{}==1'.format(self.name_MetroIf))[
+            "{}".format(self.name_r_po)].sum()
+        res.ranges[model_config_params.Indicator_acc] = [0, max_]
+
+        #  pubService的极值范围
+        max_ = self.m_df_land['{}'.format(self.name_PublicService)].sum()
+        res.ranges[model_config_params.Indicator_pubService] = [0, max_]
+
+        #  BI的极值范围
+        max_ = self.m_df_grid['Unit_BI_WT'].sum()
+        res.ranges[model_config_params.Indicator_bi] = [0, max_]
+
+        res.score = {}
+
         return res
 
     #  io_field和bi_field是需要挂接的临时表名和临时字段名， 临时表和临时字段同名
-    def export_result_to_temp(self, res, sorted_inds, sols, sol_list, io_field, bi_field):
+    def export_result_to_temp(self, type, res, sorted_inds, sols, sol_list, io_field, bi_field):
         try:
             ds_path = res.dataSource
+
+            if type != 'multiple':
+                obj_key = type.split("_")[1]
+            else:
+                obj_key = 'multiple'
 
             # 保存最优值
             Land_IO = []
@@ -460,9 +509,9 @@ class Model:
             for j in self.UnitIDs:
                 Unit_BI.append([j, 1 / (sols[bnum][self.x_Unit_PlaBI[j]])])
 
-            df_Land_IO=pd.DataFrame(Land_IO, columns=[model_layer_meta.name_landid, self.name_io,
+            df_Land_IO=pd.DataFrame(Land_IO, columns=[model_layer_meta.name_landid, io_field,
                                                       model_layer_meta.name_r_po])
-            df_Unit_BI=pd.DataFrame(Unit_BI, columns=[model_layer_meta.name_unitid, self.name_plabi])
+            df_Unit_BI=pd.DataFrame(Unit_BI, columns=[model_layer_meta.name_unitid, bi_field])
             df_Indicator_value=pd.DataFrame(Indicator_value, columns=["Indicator", "value"])
 
             #  join result
@@ -473,35 +522,31 @@ class Model:
                                              bi_field,
                                              model_layer_meta.name_unitid, bi_field, "Real", -1)
 
-            #  net increase变量的极值范围
-            max_ = (self.m_df_land[self.name_r_po] - self.m_df_land[self.name_CurRBld]).map(
-                lambda x: 0 if x < 0 else x
-            ).sum()
+            cur = {}
+            #  net increase变量的当前值
             cur_ = df_Indicator_value.query('Indicator=="{}"'.format(model_config_params.Indicator_net)).iloc[0, 1]
-            res.ranges[model_config_params.Indicator_net] = [0, max_, cur_]
+            cur[model_config_params.Indicator_net] = cur_
 
-            #  demolish变量的极值范围
-            min_ = self.m_df_land[self.name_CurRBld].sum() * -1
+            #  demolish变量的当前值
             cur_ = df_Indicator_value.query('Indicator=="{}"'.format(model_config_params.Indicator_demo)).iloc[0, 1] * -1
-            res.ranges[model_config_params.Indicator_demo] = [min_, 0, cur_]
+            cur[model_config_params.Indicator_demo] = cur_
 
-            #  acc变量的极值范围
-            max_ = self.m_df_land.query('{}==1'.format(self.name_MetroIf))[
-                "{}".format(self.name_r_po)].sum()
-
-            cur_ = (df_Land_IO[self.name_io] * df_Land_IO[model_layer_meta.name_r_po]).sum()
-            # cur_ = df_Indicator_value.query('Indicator=="{}"'.format(model_config_params.Indicator_acc)).iloc[0, 1]
-            res.ranges[model_config_params.Indicator_acc] = [0, max_, cur_]
+            #  acc变量的当前值
+            cur_ = (df_Land_IO[io_field] * df_Land_IO[model_layer_meta.name_r_po]).sum()
+            cur[model_config_params.Indicator_acc] = cur_
 
             #  pubService的极值范围
-            max_ = self.m_df_land['{}'.format(self.name_PublicService)].sum()
             cur_ = df_Indicator_value.query('Indicator=="{}"'.format(model_config_params.Indicator_pubService)).iloc[0, 1]
-            res.ranges[model_config_params.Indicator_pubService] = [0, max_, cur_]
+            cur[model_config_params.Indicator_pubService] = cur_
 
             #  BI的极值范围
-            max_ = self.m_df_grid['Unit_BI_WT'].sum()
             cur_ = df_Indicator_value.query('Indicator=="{}"'.format(model_config_params.Indicator_bi)).iloc[0, 1]
-            res.ranges[model_config_params.Indicator_bi] = [0, max_, cur_]
+            cur[model_config_params.Indicator_bi] = cur_
+
+            res.score[obj_key] = {
+                'current': cur,
+                'overall': -1
+            }
 
             return res
         except Exception as e:
@@ -606,7 +651,8 @@ class ModelResult():
         self._layers = {}  # 图形结果的名称
 
         self._indicators = {}  # 指标计算结果
-        self._ranges = {}  # 变量范围值 [min, max, current]
+        self._ranges = {}  # 变量范围值 [min, max]
+        self._score = {}
 
     @pyqtProperty(str)
     def ID(self):
@@ -655,5 +701,13 @@ class ModelResult():
     @ranges.setter
     def ranges(self, v):
         self._ranges = v
+
+    @pyqtProperty(dict)
+    def score(self):
+        return self._score
+
+    @score.setter
+    def score(self, v):
+        self._score = v
 
 

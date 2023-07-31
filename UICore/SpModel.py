@@ -56,7 +56,7 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
             log.info("模型输入指标计算完毕.", color=success_log_color)
 
             log.info("构建优化传导模型...", color=success_log_color)
-            model = Model(model_name, ds_name, df_constraint, log)
+            model = Model(model_name, ds_name, df_indicator_Weight,  df_constraint, log)
             model.build()
             # log.info("优化传导模型构建完毕.", color=success_log_color)
             log.info("载入模型预设参数...", color=success_log_color)
@@ -76,7 +76,7 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
                 w = df_indicator_Weight[model_layer_meta.name_weight].tolist()
                 log.info("开始模型优化计算...", color=success_log_color)
                 log.info("多目标模型优化计算...")
-                model.execute_obj(preset_params, w=w)
+                model.execute_obj(EvaObj=preset_params, w=w)
 
                 if len(df_indicator_Weight.query('{}==True'.format(model_layer_meta.name_bSingleCal))) > 0:
                     for index, row in df_indicator_Weight.iterrows():
@@ -88,10 +88,13 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
                             no = Weight_neccessary[index][1]   # 取编号
                             io_field = model_layer_meta.name_io + "_" + str(no)
                             bi_field = model_layer_meta.name_plabi + "_" + str(no)
-                            model.execute_obj(obj, sense, w, io_field=io_field, bi_field=bi_field)
+                            model.execute_obj('s_' + index,  obj, sense, w, io_field=io_field, bi_field=bi_field)
 
+                log.info("综合评分计算...")
+                model.overall()  # 综合评分
                 ds_path = model.model_res.dataSource
-                log.info("模型优化计算完毕，结果导出至模型库{}.".format(os.path.abspath(ds_path)), color=success_log_color)
+                log.info("所有模型优化计算步骤完毕，结果导出至模型库{}.".format(os.path.abspath(ds_path)),
+                         color=success_log_color)
                 model.export_spatial_layer(ds_path)
 
                 end = time.time()

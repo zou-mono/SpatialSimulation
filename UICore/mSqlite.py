@@ -2,6 +2,9 @@
 
 from sqlite3 import connect
 
+from UICore.log4p import Log
+
+log = Log(__name__)
 
 class Sqlite:
     def __init__(self, db):
@@ -23,7 +26,7 @@ class Sqlite:
             else:
                 self._connect()
         except Exception as e:
-            print(f"连接Sqlite数据库：{self.db}失败！异常信息：{e.args[0]}")
+            log.error(f"连接Sqlite数据库：{self.db}失败！异常信息：{e.args[0]}")
             raise
 
     def execute(self, sql, values=(), bFetch=False, row_factory=None):
@@ -39,9 +42,9 @@ class Sqlite:
             # print(f"执行sql语句成功：{sql}")
             cur.close()
         except Exception as e:
-            print(f"执行sql语句失败：{sql}！异常信息：{e.args[0]}")
+            # log.error(f"执行sql语句失败：{sql}！异常信息：{e.args[0]}")
             self.connection.rollback()
-            raise
+            raise Exception(f"执行sql语句失败：{sql}！异常信息：{e.args[0]}")
         # return row
         finally:
             self.connection.row_factory = self.row_factory   # 还原返回值数据结构
@@ -58,8 +61,9 @@ class Sqlite:
             # print(f"执行sql语句成功：{sql}")
             cur.close()
         except Exception as e:
-            print(f"执行sql语句失败：{sql}！异常信息：{e.args[0]}")
-            raise
+            raise Exception("执行sql语句失败：{sql}！异常信息：{e.args[0]}")
+            # log.error("执行sql语句失败：{sql}！异常信息：{e.args[0]}")
+            # raise
         finally:
             self.close()
 
@@ -73,7 +77,7 @@ class Sqlite:
             # print(f"执行sql语句成功：{script}")
             cur.close()
         except Exception as e:
-            print(f"执行sql脚本失败：{script}！异常信息：{e.args[0]}")
+            log.error(f"执行sql脚本失败：{script}！异常信息：{e.args[0]}")
             raise
         finally:
             self.close()
@@ -98,8 +102,7 @@ class Sqlite:
             # print(f"执行sql语句成功：{sql}")
             cur.close()
         except Exception as e:
-            print(f"执行sql语句失败：{sql}！异常信息：{e.args[0]}")
-            raise
+            log.error(f"执行sql语句失败：{sql}！异常信息：{e.args[0]}")
         # return row
         finally:
             self.connection.row_factory = self.row_factory   # 还原返回值数据结构

@@ -307,19 +307,22 @@ if __name__ == '__main__':
     app = QgsApplication([], True)
 
     window = UI_ModelBrowser(chart_path=os.path.abspath(r'../resources/radar_hist.html'))
+
     model_res1 = ModelResult()
     model_res1.ID = str(uuid.uuid1())
-    model_res1.name = 'model_2023-07-17-20-07-38'
-    model_res1.dataSource = r'D:\空间模拟\SpatialSimulation\res\model_files\model_2023-07-17-20-07-38.sqlite'
-    model_res1.layers = {'land': '居住专规潜力用地_0621_s2', 'grid': '标准单元_0621_s2'}
-    model_res1.ranges = {'Total net increase R building': [0, 4925353.334999999, 2348936.6530000074], 'Total demolish building area': [-18825600.5823172, 0, -2949169.581999993], 'Total Metro cover buidling area': [0, 10739080.282, 1493.8861800817494], 'Total cover public service area': [0, 3896.1128, 1789.9464999999973], 'BI': [0, 6.633899399999999, 0.7677029]}
+    model_res1.name = 'model_2023-07-31-16-08-05'
+    model_res1.dataSource = r'D:\空间模拟\SpatialSimulation\res\model_files\model_2023-07-31-16-08-05.sqlite'
+    model_res1.layers = {'land': '居住专规潜力用地_0621', 'grid': '标准单元_0621'}
+    model_res1.ranges = {'NetIncRPo': [0, 34885748.643418014], 'DemoBld': [-54045505.95386531, 0], 'Acc': [0, 35090984.655], 'PublicService': [0, 16760.1601], 'BI': [0, 21.62210046]}
+    model_res1.score = {'multiple': {'current': {'NetIncRPo': 15364225.354680039, 'DemoBld': -15317557.4342225, 'Acc': 24312160.185000002, 'PublicService': 11867.470599999995, 'BI': 2.6562270999999997}, 'overall': 53.62}, 'NetIncRPo': {'current': {'NetIncRPo': 18535284.13230504, 'DemoBld': -12161314.008775942, 'Acc': 24401861.816999998, 'PublicService': 3908.6966999999995, 'BI': 2.7468455999999994}, 'overall': 47.24}, 'DemoBld': {'current': {'NetIncRPo': 16300817.014947858, 'DemoBld': -9662249.73705215, 'Acc': 22585008.737999998, 'PublicService': 3347.8207000000025, 'BI': 2.1058622}, 'overall': 44.58}, 'Acc': {'current': {'NetIncRPo': 16300817.014947856, 'DemoBld': -9662249.737052146, 'Acc': 22585008.737999998, 'PublicService': 3347.8207000000025, 'BI': 2.1058622}, 'overall': 44.58}, 'PublicService': {'current': {'NetIncRPo': 11126297.929674478, 'DemoBld': -17895987.479153745, 'Acc': 23763248.848, 'PublicService': 12822.730500000043, 'BI': 2.3017411}, 'overall': 50.73}}
 
     model_res2 = ModelResult()
     model_res2.ID = str(uuid.uuid1())
-    model_res2.name = '2023-07-24-18-43-18'
-    model_res2.dataSource = r'D:\空间模拟\SpatialSimulation\res\model_files\model_2023-07-24-18-42-452023-07-24-18-43-18.sqlite'
-    model_res2.layers = {'land': '居住专规潜力用地_0621', 'grid': '标准单元_0621'}
-    model_res2.ranges = {'Total net increase R building': [0, 4925353.334999999, 1348936.6530000074], 'Total demolish building area': [-18825600.5823172, 0, -2049169.581999993], 'Total Metro cover buidling area': [0, 10739080.282, 893.8861800817494], 'Total cover public service area': [0, 3896.1128, 1789.9464999999973], 'BI': [0, 6.633899399999999, 0.7677029]}
+    model_res2.name = 'model_2023-07-31-16-15-16'
+    model_res2.dataSource = r'D:\空间模拟\SpatialSimulation\res\model_files\model_2023-07-31-16-15-16.sqlite'
+    model_res2.layers = {'land': '居住专规潜力用地_0621_s2', 'grid': '标准单元_0621_s2'}
+    model_res2.ranges = {'NetIncRPo': [0, 4925353.334999999], 'DemoBld': [-18825600.5823172, 0], 'Acc': [0, 10739080.282], 'PublicService': [0, 3896.1128], 'BI': [0, 6.633899399999999]}
+    model_res2.score = {'multiple': {'current': {'NetIncRPo': 2308637.0150000034, 'DemoBld': -2961031.0319999973, 'Acc': 4084564.28, 'PublicService': 1808.1588999999956, 'BI': 0.7677029}, 'overall': 45.43}, 'NetIncRPo': {'current': {'NetIncRPo': 2001649.9030000013, 'DemoBld': -3296048.890999998, 'Acc': 4178685.6180000002, 'PublicService': 2032.3335999999965, 'BI': 0.7677029}, 'overall': 45.16}, 'PublicService': {'current': {'NetIncRPo': 3007943.5429999996, 'DemoBld': -2440562.0450000004, 'Acc': 4091691.2130000005, 'PublicService': 733.2966999999999, 'BI': 0.8583214}, 'overall': 43.59}}
 
     window.updateForm([model_res1, model_res2])
     window.setWindowFlags(Qt.Window)
