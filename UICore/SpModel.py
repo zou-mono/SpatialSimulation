@@ -7,7 +7,7 @@ from osgeo import gdal, ogr
 from qgis._core import QgsVectorFileWriter, QgsProject
 
 from UICore.DataFactory import workspaceFactory
-from UICore.Gv import DataType, model_layer_meta, indicator_translate_dict
+from UICore.Gv import DataType, model_layer_meta, indicator_translate_dict, Weight_neccessary
 from UICore.SCIPCal import Model
 from UICore.common import get_srs_id
 from UICore.log4p import Log
@@ -82,11 +82,12 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
                     for index, row in df_indicator_Weight.iterrows():
                         checkState = row[model_layer_meta.name_bSingleCal]
                         if checkState:
-                            single_key = row[model_layer_meta.name_indicator]
-                            log.info("单目标模型优化计算:{}".format(indicator_translate_dict[single_key]))
-                            obj, sense = model.single_obj(single_key)
-                            io_field = model_layer_meta.name_io + "_" + str(index)
-                            bi_field = model_layer_meta.name_plabi + "_" + str(index)
+                            # single_key = row[model_layer_meta.name_indicator]
+                            log.info("单目标模型优化计算:{}".format(indicator_translate_dict[index]))
+                            obj, sense = model.single_obj(index)
+                            no = Weight_neccessary[index][1]   # 取编号
+                            io_field = model_layer_meta.name_io + "_" + str(no)
+                            bi_field = model_layer_meta.name_plabi + "_" + str(no)
                             model.execute_obj(obj, sense, w, io_field=io_field, bi_field=bi_field)
 
                 ds_path = model.model_res.dataSource
