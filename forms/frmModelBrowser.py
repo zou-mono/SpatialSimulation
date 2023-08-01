@@ -4,15 +4,16 @@ import uuid
 
 from PyQt5.QtCore import Qt, QSize, pyqtSlot, QUrl, QTimer
 from PyQt5.QtGui import QIcon, QPixmap, QColor
-from PyQt5.QtWidgets import QMainWindow, QStyleFactory, QTreeWidgetItem, QMessageBox
+from PyQt5.QtWidgets import QMainWindow, QStyleFactory, QTreeWidgetItem, QMessageBox, QMenu, QAction, QHBoxLayout
 import sys
 
-from qgis._core import QgsVectorLayer, QgsProject, QgsApplication, QgsSymbol, QgsSimpleFillSymbolLayer, QgsMapLayerModel
-from qgis._gui import QgsFeatureListModel
+from qgis._core import QgsVectorLayer, QgsProject, QgsApplication, QgsSymbol, QgsSimpleFillSymbolLayer, \
+    QgsMapLayerModel, QgsLayerTreeModel
+from qgis._gui import QgsFeatureListModel, QgsLayerTreeView, QgsLayerTreeMapCanvasBridge
 
 from UI.UIModelBrowser import Ui_ModelBrowser
 from UICore.Gv import SplitterState, Dock, model_layer_meta, model_config_params, indicator_translate_dict, \
-    get_main_path, modelRole
+    get_main_path, modelRole, Window_titles, Tools
 from UICore.SCIPCal import ModelResult
 import icons_rc
 from UICore.common import get_field_index_no_case, get_qgis_style
@@ -23,6 +24,10 @@ import numpy as np
 
 from UICore.histogram import ticks, best_bin, nice, kernelDensityEstimator
 from UICore.renderer import categrorized_renderer, single_renderer
+from forms.frmIdentifyResult import frmIdentfiyResult
+from widgets.CollapsibleSplitter import CollapsibleSplitter
+from widgets.mDock import mDock
+from widgets.mapTool import mapTools
 
 Slot = pyqtSlot
 
@@ -40,36 +45,59 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.setWindowTitle("模型结果管理器")
         self.setWindowState(Qt.WindowMaximized)  # 窗口最大化
 
+        self.splitter.resize(self.width(), self.height())
+        self.setCentralWidget(self.splitter)
+
         self.splitter.setOrientation(Qt.Horizontal)
         self.splitter.setProperty("Stretch", SplitterState.expanded)
         self.splitter.setProperty("Dock", Dock.left)
         self.splitter.setProperty("WidgetToHide", self.tree_model)
         self.splitter.setProperty("ExpandParentForm", False)
-        self.splitter.setSizes([150, self.splitter.width() - 140])
-        self.resize(self.splitter.width(), self.splitter.height())
+        self.splitter.setSizes([int(self.splitter.width() * 0.2), int(self.splitter.width() * 0.8 - 10)])
+        # self.resize(self.splitter.width(), self.splitter.height())
         self.splitter.setupUi()
-
-        self.setCentralWidget(self.splitter)
 
         self.splitter_preview.setOrientation(Qt.Horizontal)
         self.splitter_preview.setProperty("Stretch", SplitterState.expanded)
         self.splitter_preview.setProperty("Dock", Dock.right)
         self.splitter_preview.setProperty("WidgetToHide", self.chart_webView)
         self.splitter_preview.setProperty("ExpandParentForm", False)
-        self.splitter_preview.setSizes([500, self.splitter.width() - 490])
-        self.resize(self.splitter_preview.width(), self.splitter_preview.height())
+        self.splitter_preview.setSizes([int(self.splitter.width() * 0.5), int(self.splitter.width() * 0.3 - 10)])
+        # self.resize(self.splitter_preview.width(), self.splitter_preview.height())
         self.splitter_preview.setupUi()
+
+        self.splitter_toc.setOrientation(Qt.Vertical)
+        self.splitter_toc.setProperty("Stretch", SplitterState.collapsed)
+        self.splitter_toc.setProperty("Dock", Dock.down)
+        self.splitter_toc.setProperty("WidgetToHide", self.tocView)
+        self.splitter_toc.setProperty("ExpandParentForm", False)
+        self.splitter_toc.setSizes([int(self.splitter.height() * 0.5), int(self.splitter.height() * 0.5 - 10)])
+        self.splitter_toc.setupUi()
+        #
+        # self.resize(self.splitter.width(), self.splitter.height())
 
         self.tabWidget_model.setTabText(0, "预览图")
         self.tabWidget_model.setTabText(1, "模型信息")
-
-        self.project = QgsProject()
-        self.mapPreviewer.setProject(self.project)
 
         self.tree_model.setStyle(QStyleFactory.create("windows"))
         self.tree_model.currentItemChanged.connect(self.tree_model_currentItemChanged)
 
         self.chart_webView.loadFinished.connect(self.chart_webView_loadFinished)
+
+        self.createActions()
+        self.createMapTools()
+        self.createMenus()
+        self.createToolbars()
+        self.createDockWindows()
+
+        self.project = QgsProject()
+        self.mapPreviewer.setProject(self.project)
+        self.root = self.project.layerTreeRoot()
+        self.model = QgsLayerTreeModel(self.root, self)
+        self.model.setFlag(QgsLayerTreeModel.AllowNodeReorder)
+        self.model.setFlag(QgsLayerTreeModel.AllowNodeChangeVisibility)
+        self.tocView.setModel(self.model)
+        self.bridge = QgsLayerTreeMapCanvasBridge(self.root, self.mapPreviewer, self)
 
         self.bFirst = True
         self.get_field_names()
@@ -92,6 +120,50 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.name_potentialLand_area = model_layer_meta.name_potentialLand_area
         self.name_plabi = model_layer_meta.name_plabi.lower()
 
+    def createDockWindows(self):
+        self.dockIdentifyResult = frmIdentfiyResult(self, Qt.TopDockWidgetArea | Qt.BottomDockWidgetArea)
+
+    def createToolbars(self):
+        pass
+
+    def createActions(self):
+        self.actionOpen = QAction("打开优化传导模型...", self, shortcut="Ctrl+O",
+                                  triggered=self.OpenModels)
+
+        self.actionExit = QAction("退出", self, shortcut="Ctrl+Q",
+                                  triggered=self.exit)
+
+    def createMenus(self):
+        self.modelMenu = QMenu("模型", self)
+        self.modelMenu.addAction(self.actionOpen)
+        self.modelMenu.addSeparator()
+        self.modelMenu.addAction(self.actionExit)
+
+        self.viewMenu = QMenu("视图", self)
+        self.viewMenu.addAction(self.actionZoomIn)
+        self.viewMenu.addAction(self.actionZoomOut)
+        self.viewMenu.addAction(self.actionPan)
+        self.viewMenu.addSeparator()
+        self.viewMenu.addAction(self.actionIdentifyFeature)
+        actionTocview = QTocView(self, self.mapPreviewer, self.splitter_toc)
+        self.viewMenu.addAction(actionTocview)
+
+        self.menuBar().addMenu(self.modelMenu)
+        self.menuBar().addMenu(self.viewMenu)
+
+    def createMapTools(self):
+        mt = mapTools(self.mapPreviewer)
+        self.actionZoomIn = mt.Create(Tools.zoomIn)
+        self.actionZoomOut = mt.Create(Tools.zoomOut)
+        self.actionPan = mt.Create(Tools.pan)
+        self.actionIdentifyFeature = mt.Create(Tools.identifyFeature)
+
+    def OpenModels(self):
+        pass
+
+    def exit(self):
+        self.close()
+
     def updateForm(self, models=None):
         for model in models:
             if isinstance(model, ModelResult):
@@ -106,20 +178,61 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
                     self.tree_model.setCurrentItem(layItem)
                     self.bFirst = False
 
-                for k, v in model.layers.items():
-                    lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource, v) , v, 'ogr')
+                for sol_key, sol_v in model.score.items():
+                    if sol_key == model_config_params.Indicator_multi:
+                        child = "多目标最优方案"
+                    else:
+                        child = "单目标:" + indicator_translate_dict[sol_key] + "最优方案"
 
-                    child = QTreeWidgetItem([v])
-                    child.setData(0, QgsMapLayerModel.LayerRole, lyr)
+                    child = QTreeWidgetItem([child])
+                    child.setIcon(0, QIcon(QPixmap(":/icons/icons/优化方案.svg")))
                     child.setData(0, modelRole.model, model)
+                    child.setData(0, modelRole.solution, sol_v)
                     layItem.addChild(child)
 
-                    if not lyr.isValid():
-                        log.warning("图层文件{}读取失败".format("{}|layername={}".format(model.dataSource, v)))
-                        return
+                    lyr_grid_name = model.layers['grid']
+                    lyr_land_name = model.layers['land']
+
+                    # lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource, lyr_land_name), lyr_land_name, 'ogr')
+                    # grandson = QTreeWidgetItem(['优化方案用地布局图'])
+                    # child.addChild(grandson)
+                    #
+                    # lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource, lyr_grid_name), lyr_grid_name, 'ogr')
+                    # grandson = QTreeWidgetItem(['分类用地布局图'])
+                    # child.addChild(grandson)
+                    #
+                    # grandson = QTreeWidgetItem(['标准单元新增居住建筑面积分布图'])
+                    # child.addChild(grandson)
+                    #
+                    # grandson = QTreeWidgetItem(['标准单元拆除建筑面积分布图'])
+                    # child.addChild(grandson)
+                    #
+                    # grandson = QTreeWidgetItem(['标准单元交通可达性分布图'])
+                    # child.addChild(grandson)
+                    #
+                    # grandson = QTreeWidgetItem(['标准单元公共服务水平分布图'])
+                    # child.addChild(grandson)
+                    #
+                    # grandson = QTreeWidgetItem(['标准单元职住平衡分布图'])
+                    # child.addChild(grandson)
+                    # for cur_k, cur_v in sol_v['current'].items():
+                    #
+                    #     child.setData(0, modelRole.model, cur_v)
+
+                # for k, v in model.layers.items():
+                #     lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource, v) , v, 'ogr')
+                #
+                #     child = QTreeWidgetItem([v])
+                #     child.setData(0, QgsMapLayerModel.LayerRole, lyr)
+                #     child.setData(0, modelRole.model, model)
+                #     layItem.addChild(child)
+                #
+                #     if not lyr.isValid():
+                #         log.warning("图层文件{}读取失败".format("{}|layername={}".format(model.dataSource, v)))
+                #         return
 
         if self.bFirst:
-            self.tree_model.collapseAll()
+            self.tree_model.expandAll()
 
     # 绘制直方图
     def draw_histogram(self, model):
@@ -227,42 +340,43 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
 
     @Slot(QTreeWidgetItem, QTreeWidgetItem)
     def tree_model_currentItemChanged(self, cur_item: QTreeWidgetItem, previous_item: QTreeWidgetItem):
-        model = cur_item.data(0, modelRole.model)
+        pass
+        # model = cur_item.data(0, modelRole.model)
+        #
+        # if previous_item is None:
+        #     model_id = -1
+        # else:
+        #     model_id = previous_item.data(0, modelRole.model).ID
+        #
+        # if model is not None:
+        #     self.current_model = model
+        # else:
+        #     return
+        #
+        # if model.ID == model_id:
+        #     return
 
-        if previous_item is None:
-            model_id = -1
-        else:
-            model_id = previous_item.data(0, modelRole.model).ID
-
-        if model is not None:
-            self.current_model = model
-        else:
-            return
-
-        if model.ID == model_id:
-            return
-
-        lyrs = []
-        for k, v in model.layers.items():
-            lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource, v), v, 'ogr')
-
-            if not lyr.isValid():
-                log.warning("图层文件{}读取失败".format("{}|layername={}".format(model.dataSource, v)))
-                continue
-
-            # 渲染grid和land图层
-            self.render_layers(k, lyr)
-
-            self.mapPreviewer.setExtent(lyr.extent())
-            lyrs.append(lyr)
-
-        self.project.addMapLayers(lyrs)
-        self.mapPreviewer.setLayers(lyrs)
-        self.mapPreviewer.refresh()
-
-        if self.chart_path == "":
-            self.chart_path = os.path.join(get_main_path(), "resources", "radar_hist.html")
-        self.chart_webView.load(QUrl.fromLocalFile(os.path.abspath(self.chart_path)))
+        # lyrs = []
+        # for k, v in model.layers.items():
+        #     lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource, v), v, 'ogr')
+        #
+        #     if not lyr.isValid():
+        #         log.warning("图层文件{}读取失败".format("{}|layername={}".format(model.dataSource, v)))
+        #         continue
+        #
+        #     # 渲染grid和land图层
+        #     self.render_layers(k, lyr)
+        #
+        #     self.mapPreviewer.setExtent(lyr.extent())
+        #     lyrs.append(lyr)
+        #
+        # self.project.addMapLayers(lyrs)
+        # self.mapPreviewer.setLayers(lyrs)
+        # self.mapPreviewer.refresh()
+        #
+        # if self.chart_path == "":
+        #     self.chart_path = os.path.join(get_main_path(), "resources", "radar_hist.html")
+        # self.chart_webView.load(QUrl.fromLocalFile(os.path.abspath(self.chart_path)))
 
     def render_layers(self, k, lyr):
         sty = get_qgis_style()
@@ -302,8 +416,32 @@ def topmostItem(item):
     return item
 
 
+class QTocView(QAction):
+    def __init__(self, parent, mapCanvas, splitter: CollapsibleSplitter):
+        super(QTocView, self).__init__("图层列表", parent)
+        self.mapCanvas = mapCanvas
+        self.setIconText("图层列表")
+        self.setToolTip("图层列表")
+        self.setEnabled(True)
+        self.splitter = splitter
+        self.setCheckable(True)
+        self.toggled.connect(self.toggleState)
+
+        if self.splitter.splitterState == SplitterState.expanded:
+            self.setChecked(True)
+        else:
+            self.setChecked(False)
+
+    def toggleState(self, checked):
+        if checked:
+            self.splitter.handleSplitterButton(SplitterState=SplitterState.collapsed)
+        else:
+            self.splitter.handleSplitterButton(SplitterState=SplitterState.expanded)
+
+
 if __name__ == '__main__':
     # app = QApplication(sys.argv)
+    QgsApplication.setPrefixPath('', True)
     app = QgsApplication([], True)
 
     window = UI_ModelBrowser(chart_path=os.path.abspath(r'../resources/radar_hist.html'))
@@ -325,6 +463,6 @@ if __name__ == '__main__':
     model_res2.score = {'multiple': {'current': {'NetIncRPo': 2308637.0150000034, 'DemoBld': -2961031.0319999973, 'Acc': 4084564.28, 'PublicService': 1808.1588999999956, 'BI': 0.7677029}, 'overall': 45.43}, 'NetIncRPo': {'current': {'NetIncRPo': 2001649.9030000013, 'DemoBld': -3296048.890999998, 'Acc': 4178685.6180000002, 'PublicService': 2032.3335999999965, 'BI': 0.7677029}, 'overall': 45.16}, 'PublicService': {'current': {'NetIncRPo': 3007943.5429999996, 'DemoBld': -2440562.0450000004, 'Acc': 4091691.2130000005, 'PublicService': 733.2966999999999, 'BI': 0.8583214}, 'overall': 43.59}}
 
     window.updateForm([model_res1, model_res2])
-    window.setWindowFlags(Qt.Window)
+    # window.setWindowFlags(Qt.Window)
     window.show()
     sys.exit(app.exec_())

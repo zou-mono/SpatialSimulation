@@ -203,11 +203,11 @@ class QActionIdentifyFeature(QAction):
             ids = [f.id() for f in features]
             vlayer.selectByIds(ids, Qgis.SelectBehavior.AddToSelection)
 
+
         dockIdentifyResult = self.mapCanvas.window().dockIdentifyResult
         dockIdentifyResult.clear()
         dockIdentifyResult.updateForm(identified_dict, endMapPoint)
         dockIdentifyResult.show()
-
 
 class mapTools:
     def __init__(self, mapCanvas: QgsMapCanvas):

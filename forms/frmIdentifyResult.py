@@ -19,7 +19,7 @@ Slot = pyqtSlot
 class frmIdentfiyResult(QWidget, Ui_identifyResult):
     dockIdentifyResult = None
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, areas=Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea):
         super(frmIdentfiyResult, self).__init__(parent=parent)
         self.parent = parent
 
@@ -28,7 +28,7 @@ class frmIdentfiyResult(QWidget, Ui_identifyResult):
         self.resize(self.parent.width() * 0.3, self.parent.width() * 0.3)
 
         self.dockIdentifyResult = mDock(Window_titles.identifyResult, parent)
-        self.dockIdentifyResult.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        self.dockIdentifyResult.setAllowedAreas(areas)
         self.dockIdentifyResult.setWidget(self)
         parent.addDockWidget(Qt.RightDockWidgetArea, self.dockIdentifyResult)
 

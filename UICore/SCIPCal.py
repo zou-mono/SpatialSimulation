@@ -1,3 +1,4 @@
+from multiprocessing import cpu_count
 import os, time
 import math
 import traceback
@@ -122,6 +123,8 @@ class Model:
         model=scipModel("The Plan of residential building")
         # model.enableReoptimization(True)
         model.hideOutput()
+        model.setParam('limits/maxsol', 30)
+        model.setParam('lp/threads', cpu_count() - 1)
 
         try:
             self.create_index()
@@ -361,7 +364,7 @@ class Model:
 
     #  目标优化计算
     #  type='multiple'表示多目标优化，type='s_{name}'为具体name的单目标优化
-    def execute_obj(self, type='multiple', EvaObj=None, sense=sense_max, w=None,
+    def execute_obj(self, type=model_config_params.Indicator_multi, EvaObj=None, sense=sense_max, w=None,
                     io_field=model_layer_meta.name_io.lower(), bi_field=model_layer_meta.name_plabi.lower()):
         try:
             if self.model is None:
@@ -486,10 +489,10 @@ class Model:
         try:
             ds_path = res.dataSource
 
-            if type != 'multiple':
+            if type != model_config_params.Indicator_multi:
                 obj_key = type.split("_")[1]
             else:
-                obj_key = 'multiple'
+                obj_key = model_config_params.Indicator_multi
 
             # 保存最优值
             Land_IO = []

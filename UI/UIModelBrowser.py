@@ -18,12 +18,17 @@ class Ui_ModelBrowser(object):
         self.centralwidget = QtWidgets.QWidget(ModelBrowser)
         self.centralwidget.setObjectName("centralwidget")
         self.splitter = CollapsibleSplitter(self.centralwidget)
-        self.splitter.setGeometry(QtCore.QRect(150, 100, 811, 441))
+        self.splitter.setGeometry(QtCore.QRect(130, 130, 370, 192))
         self.splitter.setOrientation(QtCore.Qt.Horizontal)
         self.splitter.setObjectName("splitter")
-        self.tree_model = QtWidgets.QTreeWidget(self.splitter)
+        self.splitter_toc = CollapsibleSplitter(self.splitter)
+        self.splitter_toc.setOrientation(QtCore.Qt.Vertical)
+        self.splitter_toc.setObjectName("splitter_toc")
+        self.tree_model = QtWidgets.QTreeWidget(self.splitter_toc)
         self.tree_model.setObjectName("tree_model")
         self.tree_model.headerItem().setText(0, "1")
+        self.tocView = QgsLayerTreeView(self.splitter_toc)
+        self.tocView.setObjectName("tocView")
         self.tabWidget_model = QtWidgets.QTabWidget(self.splitter)
         self.tabWidget_model.setObjectName("tabWidget_model")
         self.tab_previewer = QtWidgets.QWidget()
@@ -61,5 +66,5 @@ class Ui_ModelBrowser(object):
         self.tabWidget_model.setTabText(self.tabWidget_model.indexOf(self.tab_previewer), _translate("ModelBrowser", "Tab 1"))
         self.tabWidget_model.setTabText(self.tabWidget_model.indexOf(self.tab_info), _translate("ModelBrowser", "Tab 2"))
 from PyQt5 import QtWebKitWidgets
-from qgis.gui import QgsMapCanvas
+from qgis.gui import QgsLayerTreeView, QgsMapCanvas
 from widgets.CollapsibleSplitter import CollapsibleSplitter

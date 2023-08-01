@@ -331,7 +331,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
 
         tbl.setItemDelegateForColumn(0, NoEditableDelegate(tbl))  # 列不允许编辑
         tbl.setItemDelegateForColumn(tbl_prop_col,
-                                     SpinBoxDelegate(parent=tbl, exclude_row=range(4, len(land_type_dict) - 3, 1)))
+                                     SpinBoxDelegate(parent=tbl, exclude_row=range(4, len(land_type_dict), 1)))
 
         table_default_style(tbl)
 

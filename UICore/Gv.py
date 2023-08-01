@@ -11,6 +11,7 @@ class modelRole:
     layerID = 11000
     modelID = 11001
     model = 11002
+    solution = 11003
 
 
 #  模型运算中涉及图层和字段设置
@@ -53,6 +54,7 @@ class model_config_params():
     Indicator_acc = "Acc"  # 轨道覆盖变量名称
     Indicator_pubService = "PublicService"  # 公共服务名称
     Indicator_bi = "BI"  # 职住平衡名称
+    Indicator_multi = "multiple"
 
 
 indicator_translate_dict = {
@@ -60,7 +62,7 @@ indicator_translate_dict = {
     model_config_params.Indicator_demo: "拆除总建筑量",
     model_config_params.Indicator_acc: "交通可达性",
     model_config_params.Indicator_pubService: "公共服务水平",
-    model_config_params.Indicator_bi: "职住平衡"
+    model_config_params.Indicator_bi: "职住平衡",
 }
 
 # 控制模型weight的顺序， 对后续模型矩阵运算影响很大

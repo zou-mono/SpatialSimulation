@@ -17,21 +17,27 @@
    <widget class="CollapsibleSplitter" name="splitter">
     <property name="geometry">
      <rect>
-      <x>150</x>
-      <y>100</y>
-      <width>811</width>
-      <height>441</height>
+      <x>130</x>
+      <y>130</y>
+      <width>370</width>
+      <height>192</height>
      </rect>
     </property>
     <property name="orientation">
      <enum>Qt::Horizontal</enum>
     </property>
-    <widget class="QTreeWidget" name="tree_model">
-     <column>
-      <property name="text">
-       <string notr="true">1</string>
-      </property>
-     </column>
+    <widget class="CollapsibleSplitter" name="splitter_toc">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <widget class="QTreeWidget" name="tree_model">
+      <column>
+       <property name="text">
+        <string notr="true">1</string>
+       </property>
+      </column>
+     </widget>
+     <widget class="QgsLayerTreeView" name="tocView" native="true"/>
     </widget>
     <widget class="QTabWidget" name="tabWidget_model">
      <property name="currentIndex">
@@ -90,6 +96,12 @@
    <class>QWebView</class>
    <extends>QWidget</extends>
    <header>PyQt5.QtWebKitWidgets.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QgsLayerTreeView</class>
+   <extends>QWidget</extends>
+   <header>qgis.gui.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
