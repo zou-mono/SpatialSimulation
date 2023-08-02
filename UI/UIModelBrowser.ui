@@ -30,7 +30,7 @@
      <property name="orientation">
       <enum>Qt::Vertical</enum>
      </property>
-     <widget class="QTreeWidget" name="tree_model">
+     <widget class="Model_Tree" name="tree_model">
       <column>
        <property name="text">
         <string notr="true">1</string>
@@ -103,6 +103,11 @@
    <extends>QWidget</extends>
    <header>qgis.gui.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>Model_Tree</class>
+   <extends>QTreeWidget</extends>
+   <header>widgets.mTree.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

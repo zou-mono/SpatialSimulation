@@ -84,18 +84,9 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.splitter_toc.setProperty("ExpandParentForm", False)
         self.splitter_toc.setSizes([int(self.splitter.height() * 0.5), int(self.splitter.height() * 0.5 - 10)])
         self.splitter_toc.setupUi()
-        #
-        # self.resize(self.splitter.width(), self.splitter.height())
 
         self.tabWidget_model.setTabText(0, "预览图")
         self.tabWidget_model.setTabText(1, "模型信息")
-
-        self.tree_model.setStyle(QStyleFactory.create("windows"))
-        # self.tree_model.currentItemChanged.connect(self.tree_model_currentItemChanged)
-        # self.tree_model.itemSelectionChanged.connect(self.tree_model_selectionChanged)
-        self.tree_model.selectionModel().selectionChanged.connect(self.tree_model_selectionChanged)
-        self.tree_model.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        self.tree_model.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
 
         self.chart_webView.loadFinished.connect(self.chart_webView_loadFinished)
 
@@ -352,23 +343,6 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
 
         jscode = "show_radar({}, {});".format(indicator, values)
         self.chart_webView.page().mainFrame().evaluateJavaScript(jscode)
-
-    @Slot(QTreeWidgetItem, QTreeWidgetItem)
-    def tree_model_currentItemChanged(self, cur_item: QTreeWidgetItem, previous_item: QTreeWidgetItem):
-        pass
-
-    @Slot(QItemSelection, QItemSelection)
-    def tree_model_selectionChanged(self, selected: QItemSelection, deselected: QItemSelection):
-        if selected.isEmpty():
-            return
-
-        selected_count = len(self.tree_model.selectionModel().selectedIndexes())
-
-        if selected_count > 1:
-            # 多选情况下，只要已选中的节点中包括父节点，就不允许选中
-            for cur in selected.indexes():
-                if cur.parent().data() is None:
-                    self.tree_model.selectionModel().select(cur, QItemSelectionModel.Deselect)
 
         # model = cur_item.data(0, modelRole.model)
         #
