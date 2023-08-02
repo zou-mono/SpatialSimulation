@@ -1,7 +1,9 @@
-from PyQt5.QtCore import QItemSelection, QItemSelectionModel, pyqtSlot
+from PyQt5.QtCore import QItemSelection, QItemSelectionModel, pyqtSlot, pyqtProperty
 from PyQt5.QtWidgets import QTreeWidget, QAbstractItemView, QStyleFactory, QTreeWidgetItem
+from qgis._gui import QgsLayerTreeView
 
 Slot = pyqtSlot
+
 
 class Model_Tree(QTreeWidget):
     def __init__(self, parent):
@@ -15,6 +17,10 @@ class Model_Tree(QTreeWidget):
 
         # self.currentItemChanged.connect(self.tree_model_currentItemChanged)
         # self.itemSelectionChanged.connect(self.tree_model_selectionChanged)
+
+    def setTocView(self, value):
+        if isinstance(value, QgsLayerTreeView):
+            self.tocView = value
 
     @Slot(QTreeWidgetItem, QTreeWidgetItem)
     def tree_model_currentItemChanged(self, cur_item: QTreeWidgetItem, previous_item: QTreeWidgetItem):

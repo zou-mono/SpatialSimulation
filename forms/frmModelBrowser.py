@@ -108,6 +108,8 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         # self.model.dataChanged.connect(self.toc_dataChanged)
         self.root.visibilityChanged.connect(self.checkChanged)
 
+        self.tree_model.setTocView(self.tocView)  # 将tree_model关联的tocView传入
+
         self.bFirst = True
         self.get_field_names()
         self.clear()
