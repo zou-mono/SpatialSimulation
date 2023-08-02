@@ -24,7 +24,7 @@ class Ui_ModelBrowser(object):
         self.splitter_toc = CollapsibleSplitter(self.splitter)
         self.splitter_toc.setOrientation(QtCore.Qt.Vertical)
         self.splitter_toc.setObjectName("splitter_toc")
-        self.tree_model = QtWidgets.QTreeWidget(self.splitter_toc)
+        self.tree_model = Model_Tree(self.splitter_toc)
         self.tree_model.setObjectName("tree_model")
         self.tree_model.headerItem().setText(0, "1")
         self.tocView = QgsLayerTreeView(self.splitter_toc)
@@ -68,3 +68,4 @@ class Ui_ModelBrowser(object):
 from PyQt5 import QtWebKitWidgets
 from qgis.gui import QgsLayerTreeView, QgsMapCanvas
 from widgets.CollapsibleSplitter import CollapsibleSplitter
+from widgets.mTree import Model_Tree

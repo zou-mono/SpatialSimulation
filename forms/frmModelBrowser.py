@@ -116,13 +116,23 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         # self.tocView.selectionModel().dataChanged.connect(self.toc_selectionChanged)
         # self.model.dataChanged.connect(self.toc_dataChanged)
         self.root.visibilityChanged.connect(self.checkChanged)
+        self.tocView.setDragEnabled(False)
 
+        # self.setStyle(QStyleFactory.create("windows"))
+        # self.tree_model.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        # self.tree_model.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        # self.tree_model.selectionModel().selectionChanged.connect(self.ttt)
+
+        # self.tree_model.setTocView(self.tocView)  # 将tree_model关联的tocView传入
         self.bFirst = True
         self.get_field_names()
         self.clear()
 
         self.chart_path = chart_path
         self.init_tocView()
+
+    # def ttt(self, selected, deselected):
+    #     print(len(selected.indexes()))
 
     def get_field_names(self):
         self.name_area = model_layer_meta.name_potentialLand_area.lower()
