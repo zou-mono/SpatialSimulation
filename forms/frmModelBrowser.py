@@ -2,13 +2,14 @@ import json
 import os
 import uuid
 
-from PyQt5.QtCore import Qt, QSize, pyqtSlot, QUrl, QTimer
+from PyQt5.QtCore import Qt, QSize, pyqtSlot, QUrl, QTimer, QItemSelection, QModelIndex, QItemSelectionModel
 from PyQt5.QtGui import QIcon, QPixmap, QColor
-from PyQt5.QtWidgets import QMainWindow, QStyleFactory, QTreeWidgetItem, QMessageBox, QMenu, QAction, QHBoxLayout
+from PyQt5.QtWidgets import QMainWindow, QStyleFactory, QTreeWidgetItem, QMessageBox, QMenu, QAction, QHBoxLayout,\
+    QAbstractItemView
 import sys
 
 from qgis._core import QgsVectorLayer, QgsProject, QgsApplication, QgsSymbol, QgsSimpleFillSymbolLayer, \
-    QgsMapLayerModel, QgsLayerTreeModel
+    QgsMapLayerModel, QgsLayerTreeModel, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeNode
 from qgis._gui import QgsFeatureListModel, QgsLayerTreeView, QgsLayerTreeMapCanvasBridge
 
 from UI.UIModelBrowser import Ui_ModelBrowser
@@ -28,6 +29,7 @@ from forms.frmIdentifyResult import frmIdentfiyResult
 from widgets.CollapsibleSplitter import CollapsibleSplitter
 from widgets.mDock import mDock
 from widgets.mapTool import mapTools
+from UICore.Gv import model_config_params as g_cp, model_layer_meta as g_lm
 
 Slot = pyqtSlot
 
@@ -35,6 +37,15 @@ log = Log(__name__)
 
 test_land = None
 test_grid = None
+
+toc_groups = {
+    g_lm.name_io: '优化方案用地空间布局图',
+    g_cp.Indicator_net: '新增居住建筑量空间布局图',
+    g_cp.Indicator_demo: '拆除建筑量空间布局图',
+    g_cp.Indicator_acc: '交通可达性空间布局图',
+    g_cp.Indicator_pubService: '公共服务水平空间布局图',
+    g_cp.Indicator_bi: '职住平衡空间布局图'
+}
 
 class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
     def __init__(self, parent=None, chart_path=""):
@@ -80,7 +91,11 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.tabWidget_model.setTabText(1, "模型信息")
 
         self.tree_model.setStyle(QStyleFactory.create("windows"))
-        self.tree_model.currentItemChanged.connect(self.tree_model_currentItemChanged)
+        # self.tree_model.currentItemChanged.connect(self.tree_model_currentItemChanged)
+        # self.tree_model.itemSelectionChanged.connect(self.tree_model_selectionChanged)
+        self.tree_model.selectionModel().selectionChanged.connect(self.tree_model_selectionChanged)
+        self.tree_model.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.tree_model.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
 
         self.chart_webView.loadFinished.connect(self.chart_webView_loadFinished)
 
@@ -98,12 +113,16 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.model.setFlag(QgsLayerTreeModel.AllowNodeChangeVisibility)
         self.tocView.setModel(self.model)
         self.bridge = QgsLayerTreeMapCanvasBridge(self.root, self.mapPreviewer, self)
+        # self.tocView.selectionModel().dataChanged.connect(self.toc_selectionChanged)
+        # self.model.dataChanged.connect(self.toc_dataChanged)
+        self.root.visibilityChanged.connect(self.checkChanged)
 
         self.bFirst = True
         self.get_field_names()
         self.clear()
 
         self.chart_path = chart_path
+        self.init_tocView()
 
     def get_field_names(self):
         self.name_area = model_layer_meta.name_potentialLand_area.lower()
@@ -193,32 +212,6 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
                     lyr_grid_name = model.layers['grid']
                     lyr_land_name = model.layers['land']
 
-                    # lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource, lyr_land_name), lyr_land_name, 'ogr')
-                    # grandson = QTreeWidgetItem(['优化方案用地布局图'])
-                    # child.addChild(grandson)
-                    #
-                    # lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource, lyr_grid_name), lyr_grid_name, 'ogr')
-                    # grandson = QTreeWidgetItem(['分类用地布局图'])
-                    # child.addChild(grandson)
-                    #
-                    # grandson = QTreeWidgetItem(['标准单元新增居住建筑面积分布图'])
-                    # child.addChild(grandson)
-                    #
-                    # grandson = QTreeWidgetItem(['标准单元拆除建筑面积分布图'])
-                    # child.addChild(grandson)
-                    #
-                    # grandson = QTreeWidgetItem(['标准单元交通可达性分布图'])
-                    # child.addChild(grandson)
-                    #
-                    # grandson = QTreeWidgetItem(['标准单元公共服务水平分布图'])
-                    # child.addChild(grandson)
-                    #
-                    # grandson = QTreeWidgetItem(['标准单元职住平衡分布图'])
-                    # child.addChild(grandson)
-                    # for cur_k, cur_v in sol_v['current'].items():
-                    #
-                    #     child.setData(0, modelRole.model, cur_v)
-
                 # for k, v in model.layers.items():
                 #     lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource, v) , v, 'ogr')
                 #
@@ -233,6 +226,28 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
 
         if self.bFirst:
             self.tree_model.expandAll()
+
+    #  初始化tocView，增加固定的group
+    def init_tocView(self):
+        for v in toc_groups.values():
+            self.root.addGroup(v)
+
+        groups = self.root.findGroups()
+        for group in groups:
+            group.setItemVisibilityChecked(False)
+            # group.setDragEnabled(False)
+
+    # def toc_dataChanged(self, topleft: QModelIndex, bottomright: QModelIndex, roles):
+    #     print("selected")
+
+    #  控制tocView上图层和group的开关事件
+    #  group设计为单选，排他性
+    def checkChanged(self, node: QgsLayerTreeNode):
+        groups = self.root.findGroups()
+        if node.isVisible():
+            for group in groups:
+                if group != node:
+                    group.setItemVisibilityChecked(False)
 
     # 绘制直方图
     def draw_histogram(self, model):
@@ -341,6 +356,20 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
     @Slot(QTreeWidgetItem, QTreeWidgetItem)
     def tree_model_currentItemChanged(self, cur_item: QTreeWidgetItem, previous_item: QTreeWidgetItem):
         pass
+
+    @Slot(QItemSelection, QItemSelection)
+    def tree_model_selectionChanged(self, selected: QItemSelection, deselected: QItemSelection):
+        if selected.isEmpty():
+            return
+
+        selected_count = len(self.tree_model.selectionModel().selectedIndexes())
+
+        if selected_count > 1:
+            # 多选情况下，只要已选中的节点中包括父节点，就不允许选中
+            for cur in selected.indexes():
+                if cur.parent().data() is None:
+                    self.tree_model.selectionModel().select(cur, QItemSelectionModel.Deselect)
+
         # model = cur_item.data(0, modelRole.model)
         #
         # if previous_item is None:
