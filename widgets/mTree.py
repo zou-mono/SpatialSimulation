@@ -52,18 +52,22 @@ class Model_Tree(QTreeWidget):
                 if cur.parent().data() is None:
                     self.selectionModel().select(cur, QItemSelectionModel.Deselect)
         else:
-            # 多选情况下，如果已选中节点中包含root节点，则不允许选中当前节点
+            # 如果已选中节点中包含root节点，则不允许选中当前节点
             if bhave_root and selected_count > 1:
                 self.selectionModel().select(cur_selected, QItemSelectionModel.Deselect)
 
     def on_contextMenuRequested(self, pos: QPoint):
         selected_count = len(self.selectionModel().selectedIndexes())
+        index =  self.indexAt(pos)
 
         if selected_count > 1:
             context_menu = QMenu()
             context_menu.addAction(QActionModelCompare(self))
             context_menu.exec(QCursor.pos())
-
+        elif index.parent().data() is None and selected_count == 1:
+            context_menu = QMenu()
+            context_menu.addAction(QActionModelInfo(self))
+            context_menu.exec(QCursor.pos())
 
 #  模型对比
 class QActionModelCompare(QAction):
@@ -72,4 +76,12 @@ class QActionModelCompare(QAction):
         self.setIconText("方案对比")
         self.setToolTip("方案对比")
         self.setIcon(QIcon(QPixmap(":/icons/icons/方案对比.svg")))
+        self.setEnabled(True)
+
+class QActionModelInfo(QAction):
+    def __init__(self, parent):
+        super(QActionModelInfo, self).__init__("模型信息", parent)
+        self.setIconText("模型信息")
+        self.setToolTip("模型信息")
+        self.setIcon(QIcon(QPixmap(":/icons/icons/information.svg")))
         self.setEnabled(True)

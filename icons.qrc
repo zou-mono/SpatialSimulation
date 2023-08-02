@@ -29,5 +29,6 @@
     <file>icons/mGeoPackage.svg</file>
     <file>icons/优化方案.svg</file>
     <file>icons/方案对比.svg</file>
+    <file>icons/information.svg</file>
   </qresource>
 </RCC>
