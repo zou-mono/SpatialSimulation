@@ -7,7 +7,7 @@ from osgeo import gdal, ogr
 from qgis._core import QgsVectorFileWriter, QgsProject
 
 from UICore.DataFactory import workspaceFactory
-from UICore.Gv import DataType, model_layer_meta, indicator_translate_dict, Weight_neccessary
+from UICore.Gv import DataType, model_layer_meta as g_lm, indicator_translate_dict, Weight_neccessary
 from UICore.SCIPCal import Model
 from UICore.common import get_srs_id
 from UICore.log4p import Log
@@ -26,8 +26,8 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
     if logClass is not None:
         log = logClass
 
-    model_layer_meta.name_layer_Grid = lyr_name_Grid
-    model_layer_meta.name_layer_PotentialLand = lyr_name_PotentialLand
+    g_lm.name_layer_Grid = lyr_name_Grid
+    g_lm.name_layer_PotentialLand = lyr_name_PotentialLand
 
     cur_path, filename = os.path.split(os.path.abspath(sys.argv[0]))
     temp_sqliteDB_name = '%s' % (time.strftime('%Y-%m-%d-%H-%M-%S'))
@@ -73,21 +73,21 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
                 # log.info("模型预制参数载入成功！", color=success_log_color)
 
                 # 这里的顺序是和Weight_neccessary一致的
-                w = df_indicator_Weight[model_layer_meta.name_weight].tolist()
+                w = df_indicator_Weight[g_lm.name_weight].tolist()
                 log.info("开始模型优化计算...", color=success_log_color)
                 log.info("多目标模型优化计算...")
                 model.execute_obj(EvaObj=preset_params, w=w)
 
-                if len(df_indicator_Weight.query('{}==True'.format(model_layer_meta.name_bSingleCal))) > 0:
+                if len(df_indicator_Weight.query('{}==True'.format(g_lm.name_bSingleCal))) > 0:
                     for index, row in df_indicator_Weight.iterrows():
-                        checkState = row[model_layer_meta.name_bSingleCal]
+                        checkState = row[g_lm.name_bSingleCal]
                         if checkState:
-                            # single_key = row[model_layer_meta.name_indicator]
+                            # single_key = row[g_lm.name_indicator]
                             log.info("单目标模型优化计算:{}".format(indicator_translate_dict[index]))
                             obj, sense = model.single_obj(index)
                             no = Weight_neccessary[index][1]   # 取编号
-                            io_field = model_layer_meta.name_io + "_" + str(no)
-                            bi_field = model_layer_meta.name_plabi + "_" + str(no)
+                            io_field = g_lm.name_io + "_" + str(no)
+                            bi_field = g_lm.name_plabi + "_" + str(no)
                             model.execute_obj('s_' + index,  obj, sense, w, io_field=io_field, bi_field=bi_field)
 
                 log.info("综合评分计算...")
@@ -124,34 +124,34 @@ def field_cal(dataSource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vP
 
     try:
         #  标准单元编号
-        create_new_field(lyr_Grid, model_layer_meta.name_unitid, ogr.OFTInteger64)
-        exec_str = r"UPDATE {} SET {}=ROWID".format(lyr_name_Grid, model_layer_meta.name_unitid)
+        create_new_field(lyr_Grid, g_lm.name_unitid, ogr.OFTInteger64)
+        exec_str = r"UPDATE {} SET {}=ROWID".format(lyr_name_Grid, g_lm.name_unitid)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
 
         # 居住专规用地编号
-        create_new_field(lyr_PotentialLand, model_layer_meta.name_landid, ogr.OFTInteger64)
-        exec_str = r"UPDATE {} SET {}=ROWID".format(lyr_name_PotentialLand, model_layer_meta.name_landid)
+        create_new_field(lyr_PotentialLand, g_lm.name_landid, ogr.OFTInteger64)
+        exec_str = r"UPDATE {} SET {}=ROWID".format(lyr_name_PotentialLand, g_lm.name_landid)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
 
         log.info("计算职住系数...")
         # 1 职住系数
-        create_new_field(lyr_Grid, model_layer_meta.name_zzphxs, ogr.OFTReal)
+        create_new_field(lyr_Grid, g_lm.name_zzphxs, ogr.OFTReal)
 
         CurPOP = vGrid_field["单元现状人口总数"]
         CurJOB = vGrid_field["单元现状就业岗位总数"]
         exec_str = r"UPDATE {} SET {}=CAST(({}+1) AS REAL)/({}+1)".format(lyr_name_Grid,
-                                                                          model_layer_meta.name_zzphxs, CurJOB, CurPOP)
+                                                                          g_lm.name_zzphxs, CurJOB, CurPOP)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
 
         # 2 创建 居住潜力用地_标准单元匹配 图层
         log.info('创建"居住潜力用地_标准单元匹配"图层')
 
-        create_new_field(lyr_PotentialLand, model_layer_meta.name_potentialLand_area, ogr.OFTReal)
+        create_new_field(lyr_PotentialLand, g_lm.name_potentialLand_area, ogr.OFTReal)
         exec_str = r"UPDATE {} SET {}=CAST(st_area(GEOMETRY) as real)".format(lyr_name_PotentialLand,
-                                                                              model_layer_meta.name_potentialLand_area)
+                                                                              g_lm.name_potentialLand_area)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
 
@@ -167,14 +167,14 @@ def field_cal(dataSource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vP
                         FROM SpatialIndex
                         WHERE f_table_name = '{}'
                         AND search_frame = p.geometry)) AS tlb_a where st_area(tlb_a.geometry) > 0.1
-        '''.format(model_layer_meta.name_layer_match, lyr_name_Grid, lyr_name_PotentialLand, lyr_name_Grid)
+        '''.format(g_lm.name_layer_match, lyr_name_Grid, lyr_name_PotentialLand, lyr_name_Grid)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
 
         srs = lyr_Grid.GetSpatialRef()
         srs_id = get_srs_id(srs)
         exec_str = '''SELECT RecoverGeometryColumn('{}', 'geometry', {}, "MULTIPOLYGON", "xy")'''.format(
-            model_layer_meta.name_layer_match, srs_id)
+            g_lm.name_layer_match, srs_id)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
 
@@ -194,7 +194,7 @@ def field_cal(dataSource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vP
         global name_r_po
         name_r_po = vPotential_field["新建居住建筑潜力面积"]
         exec_str = r"UPDATE {} SET {}=CAST(st_area(GEOMETRY) as real) * {} / area".format(
-            model_layer_meta.name_layer_match, name_r_po, name_r_po)
+            g_lm.name_layer_match, name_r_po, name_r_po)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
 
@@ -202,7 +202,7 @@ def field_cal(dataSource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vP
         global name_CurBldAdj
         name_CurBldAdj = vPotential_field["居住地块现状所有建筑面积"]
         exec_str = r"UPDATE {} SET {}=CAST(st_area(GEOMETRY) as real) * {} / area".format(
-            model_layer_meta.name_layer_match, name_CurBldAdj, name_CurBldAdj)
+            g_lm.name_layer_match, name_CurBldAdj, name_CurBldAdj)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
 
@@ -210,13 +210,13 @@ def field_cal(dataSource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vP
         global name_CurRBld
         name_CurRBld = vPotential_field["居住地块现状居住建筑面积"]
         exec_str = r"UPDATE {} SET {}=CAST(st_area(GEOMETRY) as real) * {} / area".format(
-            model_layer_meta.name_layer_match, name_CurRBld, name_CurRBld)
+            g_lm.name_layer_match, name_CurRBld, name_CurRBld)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
 
         # 6 计算潜力用地面积
         log.info('计算"固定增加的居住建筑面积"...')
-        create_new_field(lyr_Grid, model_layer_meta.name_FixedAddRS, ogr.OFTReal)
+        create_new_field(lyr_Grid, g_lm.name_FixedAddRS, ogr.OFTReal)
         exec_str = '''UPDATE {} as c0 SET {}=tbl_a.R_PO_SUM from 
         (SELECT SUM({}-{}) AS R_PO_SUM, c.ROWID as rid from {} AS p LEFT OUTER JOIN {} AS c ON
             p.type <> 6 AND p.type <> 7 AND p.type <> 8 AND p.type <> 9  AND ST_Contains(c.geometry, st_centroid(p.geometry))
@@ -224,31 +224,31 @@ def field_cal(dataSource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vP
                 SELECT ROWID FROM SpatialIndex WHERE f_table_name = '{}'
                     AND search_frame = st_centroid(p.geometry))
             GROUP BY rid
-        ) AS tbl_a WHERE c0.ROWID=tbl_a.rid'''.format(lyr_name_Grid, model_layer_meta.name_FixedAddRS, name_r_po,
-                                                      name_CurRBld, model_layer_meta.name_layer_match,
+        ) AS tbl_a WHERE c0.ROWID=tbl_a.rid'''.format(lyr_name_Grid, g_lm.name_FixedAddRS, name_r_po,
+                                                      name_CurRBld, g_lm.name_layer_match,
                                                       lyr_name_Grid, lyr_name_Grid)
 
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
 
         exec_str = '''UPDATE {} SET {}=0 where {} is null'''.format(
-            lyr_name_Grid, model_layer_meta.name_FixedAddRS, model_layer_meta.name_FixedAddRS)
+            lyr_name_Grid, g_lm.name_FixedAddRS, g_lm.name_FixedAddRS)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
 
         # 7 计算固定增加的居住人口
         log.info('计算"固定增加的居住人口"...')
 
-        create_new_field(lyr_Grid, model_layer_meta.name_FixaddPOP, ogr.OFTInteger64)
+        create_new_field(lyr_Grid, g_lm.name_FixaddPOP, ogr.OFTInteger64)
         exec_str = '''UPDATE {} SET {}=round({}/35)'''.format(
-            lyr_name_Grid, model_layer_meta.name_FixaddPOP, model_layer_meta.name_FixedAddRS)
+            lyr_name_Grid, g_lm.name_FixaddPOP, g_lm.name_FixedAddRS)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
 
         # 8 计算职住平衡分析权重
         log.info('计算"职住平衡分析权重"...')
 
-        create_new_field(lyr_Grid, model_layer_meta.name_weight, ogr.OFTReal)
+        create_new_field(lyr_Grid, g_lm.name_weight, ogr.OFTReal)
 
         CurPOP = vGrid_field["单元现状人口总数"]
         CurJOB = vGrid_field["单元现状就业岗位总数"]
@@ -265,8 +265,8 @@ def field_cal(dataSource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vP
                         from {} as c 
                     )
                 ) as tlb_a where c0.rowid = tlb_a.rowid        
-        '''.format(lyr_name_Grid, model_layer_meta.name_weight, CurPOP, CurJOB, model_layer_meta.name_zzphxs,
-                   model_layer_meta.name_zzphxs, model_layer_meta.name_zzphxs, model_layer_meta.name_zzphxs,
+        '''.format(lyr_name_Grid, g_lm.name_weight, CurPOP, CurJOB, g_lm.name_zzphxs,
+                   g_lm.name_zzphxs, g_lm.name_zzphxs, g_lm.name_zzphxs,
                    lyr_name_Grid)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)
