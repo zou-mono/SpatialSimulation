@@ -7,7 +7,8 @@ from osgeo import gdal, ogr
 from qgis._core import QgsVectorFileWriter, QgsProject
 
 from UICore.DataFactory import workspaceFactory
-from UICore.Gv import DataType, model_layer_meta as g_lm, indicator_translate_dict, Weight_neccessary
+from UICore.Gv import DataType, model_layer_meta as g_lm, model_config_params as g_cp,\
+    indicator_translate_dict, Weight_neccessary
 from UICore.SCIPCal import Model
 from UICore.common import get_srs_id
 from UICore.log4p import Log
@@ -26,8 +27,8 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
     if logClass is not None:
         log = logClass
 
-    g_lm.name_layer_Grid = lyr_name_Grid
-    g_lm.name_layer_PotentialLand = lyr_name_PotentialLand
+    lyr_name_Grid = g_lm.name_layer_Grid
+    lyr_name_PotentialLand = g_lm.name_layer_PotentialLand
 
     cur_path, filename = os.path.split(os.path.abspath(sys.argv[0]))
     temp_sqliteDB_name = '%s' % (time.strftime('%Y-%m-%d-%H-%M-%S'))
@@ -41,8 +42,9 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
 
         output_file = os.path.join(temp_sqliteDB_path, temp_sqliteDB_name)
 
-        create_temp_sqliteDB_by_qgis(layers[0], output_file, layers[0].name())
-        datasource = create_temp_sqliteDB_by_qgis(layers[1], output_file, layers[1].name(), bOpen=True)
+        create_temp_sqliteDB_by_qgis(layers[g_lm.name_layer_Grid], output_file, g_lm.name_layer_Grid)
+        datasource = create_temp_sqliteDB_by_qgis(layers[g_lm.name_layer_PotentialLand],
+                                                  output_file, g_lm.name_layer_PotentialLand, bOpen=True)
 
         # create_temp_sqliteDB(temp_sqliteDB_path, temp_sqliteDB_name, path_Grid, lyr_name_Grid)
         # datasource = create_temp_sqliteDB(temp_sqliteDB_path, temp_sqliteDB_name, path_PotentialLand, lyr_name_PotentialLand, bOpen=True)
@@ -69,6 +71,8 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
             #     bFlag = model.save_preset_params()
 
             if bFlag:
+                obj_names = []
+
                 preset_params = model.load_preset_params()
                 # log.info("模型预制参数载入成功！", color=success_log_color)
 
@@ -77,6 +81,7 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
                 log.info("开始模型优化计算...", color=success_log_color)
                 log.info("多目标模型优化计算...")
                 model.execute_obj(EvaObj=preset_params, w=w)
+                obj_names.append(g_cp.Indicator_multi)
 
                 if len(df_indicator_Weight.query('{}==True'.format(g_lm.name_bSingleCal))) > 0:
                     for index, row in df_indicator_Weight.iterrows():
@@ -90,13 +95,15 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
                             # bi_field = g_lm.name_plabi + "_" + str(no)
                             # model.execute_obj('s_' + index,  obj, sense, w, io_field=io_field, bi_field=bi_field)
                             model.execute_obj('s_' + index,  obj, sense, w)
+                            obj_names.append(index)
 
                 log.info("综合评分计算...")
                 model.overall()  # 综合评分
                 ds_path = model.model_res.dataSource
                 log.info("所有模型优化计算步骤完毕，结果导出至模型库{}.".format(os.path.abspath(ds_path)),
                          color=success_log_color)
-                model.export_spatial_layer(ds_path)
+
+                model.export_spatial_layer(ds_path, obj_names)
 
                 end = time.time()
                 log.info("完成所有计算步骤，共耗时：{}秒".format("{:.2f}".format(end - start)))
@@ -171,7 +178,7 @@ def field_cal(dataSource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vP
 
         srs = lyr_Grid.GetSpatialRef()
         srs_id = get_srs_id(srs)
-        exec_str = '''SELECT RecoverGeometryColumn('{}', 'geometry', {}, "MULTIPOLYGON", "xy")'''.format(
+        exec_str = '''SELECT RecoverGeometryColumn('{}', 'geometry', '{}', "MULTIPOLYGON", "xy")'''.format(
             g_lm.name_layer_match, srs_id)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)

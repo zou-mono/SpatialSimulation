@@ -16,17 +16,18 @@ class modelRole:
 
 #  模型运算中涉及图层和字段设置
 class model_layer_meta():
+    name_layer_match = "居住潜力用地_标准单元匹配"
+    name_layer_Grid = "标准单元"
+    name_layer_PotentialLand = "居住专规潜力用地"
+
     name_zzphxs = "BI"  # 职住平衡系数字段名称
     name_FixedAddRS = "FixedAddRS"  # 固定增加的居住建筑
     name_potentialLand_area = "area"  # 潜力用地面积字段
-    name_layer_match = "居住潜力用地_标准单元匹配"
     name_CurRBld = "CurRBld"  # 居住地块现状居住建筑面积
     name_FixaddPOP = "FixaddPOP"  # 固定增加的居住人口
     name_weight = "Weight"  # 职住平衡分析权重
     name_unitid = "UnitID"  # 标准单元编号
     name_landid = "LandID" # 居住专规用地编号
-    name_layer_Grid = "标准单元"
-    name_layer_PotentialLand = "居住专规潜力用地"
     name_type = "Type"
     name_r_po = "R_Po"
     name_io = "IO"
@@ -44,16 +45,19 @@ class model_layer_meta():
     name_indicator = 'Indicator' #  指标字段的名称
 
 class model_neccessary_field():
-    name_plajob = "未来就业岗位"
-    name_CurPop = "单元现状人口总数"
-    name_CurJOB = "单元现状就业岗位总数"
-    name_UnitType = "单元类型"
-    name_type = "居住地块用地类型"
-    name_CurBldAdj = "居住地块现状建筑面积"
-    name_CurRBld = "居住地块现状居住建筑面积"
-    name_r_po = "新建居住建筑潜力面积"
-    name_MetroIF = "是否在地铁站范围内"
-    name_PublicService = "可享用的公服面积"
+    class grid():
+        name_plajob = "未来就业岗位"
+        name_CurPop = "单元现状人口总数"
+        name_CurJOB = "单元现状就业岗位总数"
+        name_UnitType = "单元类型"
+
+    class land():
+        name_type = "居住地块用地类型"
+        name_CurBldAdj = "居住地块现状建筑面积"
+        name_CurRBld = "居住地块现状居住建筑面积"
+        name_r_po = "新建居住建筑潜力面积"
+        name_MetroIF = "是否在地铁站范围内"
+        name_PublicService = "可享用的公服面积"
 
 #  模型配置文件设置
 class model_config_params():
@@ -83,11 +87,11 @@ indicator_translate_dict = {
 # key是顺序，同时也是区分结果图层中io,plabi字段的序号
 # 第三列表示是否可以参与单目标优化运算
 Weight_neccessary = {
-    model_config_params.Indicator_net: ['新增总居住建筑量', 0, True],
-    model_config_params.Indicator_demo: ['拆除总建筑量', 1, True],
-    model_config_params.Indicator_acc: ['交通可达性', 2, True],
-    model_config_params.Indicator_pubService: ['公共服务水平', 3, True],
-    model_config_params.Indicator_bi: ['职住平衡指数', 4, False]
+    model_config_params.Indicator_net: ['新增总居住建筑量', 1, True],
+    model_config_params.Indicator_demo: ['拆除总建筑量', 2, True],
+    model_config_params.Indicator_acc: ['交通可达性', 3, True],
+    model_config_params.Indicator_pubService: ['公共服务水平', 4, True],
+    model_config_params.Indicator_bi: ['职住平衡指数', 5, False]
 }
 
 # 控制模型的prop， key是用地type值

@@ -43,21 +43,21 @@ exclude_single_row = []  # 不参与单目标优化的行
 
 Grid_neccessary_fields = {
     # '标准单元编号': ['UnitID', 'num'],
-    g_nf.name_plajob: [g_lm.name_plajob, 'num'],
+    g_nf.grid.name_plajob: [g_lm.name_plajob, 'num'],
     # '规划居住建筑总面积': ['PlaBS', 'num'],
-    g_nf.name_CurPop: [g_lm.name_CurPop, 'num'],
-    g_nf.name_CurJOB: [g_lm.name_CurJOB, 'num'],
-    g_nf.name_UnitType: [g_lm.name_UnitType, 'str']
+    g_nf.grid.name_CurPop: [g_lm.name_CurPop, 'num'],
+    g_nf.grid.name_CurJOB: [g_lm.name_CurJOB, 'num'],
+    g_nf.grid.name_UnitType: [g_lm.name_UnitType, 'str']
 }
 
 Potential_Land_neccessary_fields = {
     # '居住地块编号': ['LandID', 'num'],
-    g_nf.name_type: [g_lm.name_type, 'num'],
-    g_nf.name_CurBldAdj: [g_lm.name_CurBldAdj, 'num'],
-    g_nf.name_CurRBld: [g_lm.name_CurRBld, 'num'],
-    g_nf.name_r_po: [g_lm.name_r_po, 'num'],
-    g_nf.name_MetroIF: [g_lm.name_MetroIF, 'num'],
-    g_nf.name_PublicService: [g_lm.name_PublicService, 'num']
+    g_nf.land.name_type: [g_lm.name_type, 'num'],
+    g_nf.land.name_CurBldAdj: [g_lm.name_CurBldAdj, 'num'],
+    g_nf.land.name_CurRBld: [g_lm.name_CurRBld, 'num'],
+    g_nf.land.name_r_po: [g_lm.name_r_po, 'num'],
+    g_nf.land.name_MetroIF: [g_lm.name_MetroIF, 'num'],
+    g_nf.land.name_PublicService: [g_lm.name_PublicService, 'num']
 }
 
 class frmModelCal(QWidget, Ui_frmModelCal):
@@ -88,8 +88,8 @@ class frmModelCal(QWidget, Ui_frmModelCal):
         self.bFirstShow = True
 
         self.input_qLayer_dict = {
-            '标准单元': "None",
-            '潜力用地': "None"
+            g_lm.name_layer_PotentialLand: "None",
+            g_lm.name_layer_Grid: "None"
         }
 
         self.mapCanvas = parent.mapCanvas
@@ -241,17 +241,17 @@ class frmModelCal(QWidget, Ui_frmModelCal):
             irow += 1
 
     def update_neccessary_field_name(self, vGrid, vLand):
-        g_lm.name_plajob = vGrid[g_nf.name_plajob]
-        g_lm.name_CurPop = vGrid[g_nf.name_CurPop]
-        g_lm.name_CurJOB = vGrid[g_nf.name_CurJOB]
-        g_lm.name_UnitType = vGrid[g_nf.name_UnitType]
+        g_lm.name_plajob = vGrid[g_nf.grid.name_plajob]
+        g_lm.name_CurPop = vGrid[g_nf.grid.name_CurPop]
+        g_lm.name_CurJOB = vGrid[g_nf.grid.name_CurJOB]
+        g_lm.name_UnitType = vGrid[g_nf.grid.name_UnitType]
 
-        g_lm.name_type = vLand[g_nf.name_type]
-        g_lm.name_CurBldAdj = vLand[g_nf.name_CurBldAdj]
-        g_lm.name_CurRBld = vLand[g_nf.name_CurRBld]
-        g_lm.name_r_po = vLand[g_nf.name_r_po]
-        g_lm.name_MetroIF = vLand[g_nf.name_MetroIF]
-        g_lm.name_PublicService = vLand[g_nf.name_PublicService]
+        g_lm.name_type = vLand[g_nf.land.name_type]
+        g_lm.name_CurBldAdj = vLand[g_nf.land.name_CurBldAdj]
+        g_lm.name_CurRBld = vLand[g_nf.land.name_CurRBld]
+        g_lm.name_r_po = vLand[g_nf.land.name_r_po]
+        g_lm.name_MetroIF = vLand[g_nf.land.name_MetroIF]
+        g_lm.name_PublicService = vLand[g_nf.land.name_PublicService]
 
     # def write_params_to_file(self, param_path):
     #     df1 = pd.read_excel(param_path, sheet_name=g_cp.Potential_Constraint)
@@ -344,7 +344,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
     # 标准单元图层
     def addGridFile_clicked(self):
         try:
-            status, fileName, layer = self.add_spatial_data("标准单元", self.tbl_GridField, Grid_neccessary_fields)
+            status, fileName, layer = self.add_spatial_data(g_lm.name_layer_Grid, self.tbl_GridField, Grid_neccessary_fields)
 
             if not status:
                 self.txt_GridFile.setText("")
@@ -360,7 +360,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
     # 潜力用地图层
     def addPotentialLandFile_clicked(self):
         try:
-            status, fileName, layer = self.add_spatial_data("潜力用地", self.tbl_PotentialLandField,
+            status, fileName, layer = self.add_spatial_data(g_lm.name_layer_PotentialLand, self.tbl_PotentialLandField,
                                                             Potential_Land_neccessary_fields)
 
             if not status:
@@ -535,9 +535,9 @@ class frmModelCal(QWidget, Ui_frmModelCal):
 
                 self.write_params_to_memory()
 
-                layers = []
-                for qlayer_id in self.input_qLayer_dict.values():
-                    layers.append(QgsProject.instance().mapLayer(qlayer_id))
+                layers = {}
+                for key, qlayer_id in self.input_qLayer_dict.items():
+                    layers[key] = QgsProject.instance().mapLayer(qlayer_id)
 
                 if self.txt_model_name.text().strip() == "":
                     model_name = "model_" + time.strftime('%Y-%m-%d-%H-%M-%S')
