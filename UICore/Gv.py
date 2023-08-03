@@ -27,18 +27,33 @@ class model_layer_meta():
     name_landid = "LandID" # 居住专规用地编号
     name_layer_Grid = "标准单元"
     name_layer_PotentialLand = "居住专规潜力用地"
-    name_type = "type"
-    name_r_po = "r_po"
+    name_type = "Type"
+    name_r_po = "R_Po"
     name_io = "IO"
-    name_plabi = "PBI"
+    name_plabi = "PlaBI"
+    name_plajob = "PlaJOB"
     name_CurBldAdj = "CurBldAdj"
+    name_CurPop = "CurPOP"
+    name_CurJOB = "CurJOB"
+    name_UnitType = "UnitType"
     name_MetroIF = "Metro_IF"
-    name_PublicService = "pubservice"
+    name_PublicService = "PubService"
     name_result_io = "land_io"
     name_result_plabi = "UnitID_PlaBI"
     name_bSingleCal = 'bSingleCal'  # 单目标是否计算字段
     name_indicator = 'Indicator' #  指标字段的名称
 
+class model_neccessary_field():
+    name_plajob = "未来就业岗位"
+    name_CurPop = "单元现状人口总数"
+    name_CurJOB = "单元现状就业岗位总数"
+    name_UnitType = "单元类型"
+    name_type = "居住地块用地类型"
+    name_CurBldAdj = "居住地块现状建筑面积"
+    name_CurRBld = "居住地块现状居住建筑面积"
+    name_r_po = "新建居住建筑潜力面积"
+    name_MetroIF = "是否在地铁站范围内"
+    name_PublicService = "可享用的公服面积"
 
 #  模型配置文件设置
 class model_config_params():
@@ -55,7 +70,6 @@ class model_config_params():
     Indicator_pubService = "PublicService"  # 公共服务名称
     Indicator_bi = "BI"  # 职住平衡名称
     Indicator_multi = "multiple"
-
 
 indicator_translate_dict = {
     model_config_params.Indicator_net: "新增居住建筑量",
@@ -104,7 +118,6 @@ land_type_dict = {
     17: "消防站",
     18: "生态线内"
 }
-
 
 class Dock(Enum):
     left = 0

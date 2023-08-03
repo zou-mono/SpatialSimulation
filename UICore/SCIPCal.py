@@ -129,7 +129,6 @@ class Model:
         try:
             self.create_index()
 
-            x = {}
             # LandID,居住专规用地编号
             self.LandIDs = self.m_df_land[self.name_landid].tolist()
             self.m_df_land.set_index(self.name_landid, inplace=True)
@@ -155,7 +154,7 @@ class Model:
 
             self.UnitIDs = self.m_df_grid.index.tolist()
 
-            x = {i: model.addVar(vtype='B',name="x(%d)"%(i)) for i in self.LandIDs}
+            x = {i: model.addVar(vtype='B', name="x(%d)"%(i)) for i in self.LandIDs}
 
             self.x_Unit_FlexPOP={}
             self.x_Unit_PlaBI={}
@@ -364,8 +363,7 @@ class Model:
 
     #  目标优化计算
     #  type='multiple'表示多目标优化，type='s_{name}'为具体name的单目标优化
-    def execute_obj(self, type=g_cp.Indicator_multi, EvaObj=None, sense=sense_max, w=None,
-                    io_field=g_lm.name_io.lower(), bi_field=g_lm.name_plabi.lower()):
+    def execute_obj(self, type=g_cp.Indicator_multi, EvaObj=None, sense=sense_max, w=None,):
         try:
             if self.model is None:
                 return False
@@ -378,7 +376,7 @@ class Model:
                 if self.model_res is None:
                     self.model_res = self.create_model_result()
                 self.model_res = self.export_result_to_temp(type, self.model_res, sorted_inds, sols,
-                                                            sol_list, io_field, bi_field)
+                                                            sol_list)
             return self.model_res
         except:
             return None
@@ -529,10 +527,8 @@ class Model:
         return res
 
     #  io_field和bi_field是需要挂接的临时表名和临时字段名， 临时表和临时字段同名
-    def export_result_to_temp(self, type, res, sorted_inds, sols, sol_list, io_field, bi_field):
+    def export_result_to_temp(self, type, res, sorted_inds, sols, sol_list):
         try:
-            ds_path = res.dataSource
-
             if type != g_cp.Indicator_multi:
                 obj_key = type.split("_")[1]
             else:
@@ -552,22 +548,23 @@ class Model:
             Indicator_value.append(["BI", sol_list[sorted_inds[0]][4]])
 
             for i in self.LandIDs:
-                Land_IO.append([i, round(sols[bnum][self.x[i]]), self.m_df_land.loc[i, g_lm.name_r_po]])
+                Land_IO.append([i, round(sols[bnum][self.x[i]]), self.m_df_land.loc[i, self.name_r_po]])
             for j in self.UnitIDs:
                 Unit_BI.append([j, 1 / (sols[bnum][self.x_Unit_PlaBI[j]])])
 
-            df_Land_IO=pd.DataFrame(Land_IO, columns=[g_lm.name_landid, io_field,
-                                                      g_lm.name_r_po])
-            df_Unit_BI=pd.DataFrame(Unit_BI, columns=[g_lm.name_unitid, bi_field])
+            df_Land_IO=pd.DataFrame(Land_IO, columns=[self.name_landid, self.name_io,
+                                                      self.name_r_po])
+            df_Unit_BI=pd.DataFrame(Unit_BI, columns=[self.name_unitid, self.name_plabi])
             df_Indicator_value=pd.DataFrame(Indicator_value, columns=["Indicator", "value"])
 
-            #  join result
+            # join io字段
             self.join_result_to_origin_layer(df_Land_IO, g_lm.name_layer_PotentialLand,
-                                             io_field,
-                                             g_lm.name_landid, io_field, "Integer", 1)
+                                             self.name_io,
+                                             g_lm.name_landid, self.name_io, "Integer", 1)
+            # join plaBI字段
             self.join_result_to_origin_layer(df_Unit_BI, g_lm.name_layer_Grid,
-                                             bi_field,
-                                             g_lm.name_unitid, bi_field, "Real", -1)
+                                             self.name_plabi,
+                                             g_lm.name_unitid, self.name_plabi, "Real", -1)
 
             cur = {}
             #  net increase变量的当前值
@@ -579,7 +576,7 @@ class Model:
             cur[g_cp.Indicator_demo] = cur_ + self.fix_values[g_cp.Indicator_demo] * -1
 
             #  acc变量的当前值
-            cur_ = (df_Land_IO[io_field] * df_Land_IO[g_lm.name_r_po]).sum()
+            cur_ = (df_Land_IO[self.name_io] * df_Land_IO[self.name_r_po]).sum()
             cur[g_cp.Indicator_acc] = cur_ + self.fix_values[g_cp.Indicator_acc]
 
             #  pubService的极值范围
@@ -615,6 +612,29 @@ class Model:
         # self.write_to_model_files(out_lyr, output_file_grid, g_lm.name_layer_Grid)
         self.write_to_model_files(out_lyr, ds_path, g_lm.name_layer_Grid)
 
+    # 将join后的表创建一张新表
+    def join_result_to_new_layer(self, df_join, origin_lyr, res_lyr,  index_col_name, join_col_name, data_type, default_value):
+        engine = create_engine(r'sqlite:///{}'.format(self.db_name), echo=False)
+        df_join.to_sql(res_lyr, con=engine, if_exists='replace', index=False,
+                       dtype={index_col_name: Integer(), join_col_name: Integer()})
+
+        exec_str = '''
+                    ALTER TABLE {} ADD COLUMN {} {}
+                '''.format(origin_lyr, join_col_name, data_type)  #  g_lm.name_layer_PotentialLand
+        self.m_db.execute(exec_str)
+
+        exec_str = '''
+                    update {} set {}={}.{} from {} where {}.{}={}.{}
+                '''.format(origin_lyr, join_col_name, res_lyr, join_col_name, res_lyr, origin_lyr, index_col_name,
+                           res_lyr, index_col_name)
+        self.m_db.execute(exec_str)
+
+        exec_str = '''
+                    update {} set {}={} where {} is null
+                '''.format(origin_lyr, join_col_name, default_value, join_col_name)
+        self.m_db.execute(exec_str)
+
+    # 在原有表基础上join新字段
     def join_result_to_origin_layer(self, df_join, origin_lyr, res_lyr,  index_col_name, join_col_name, data_type, default_value):
         engine = create_engine(r'sqlite:///{}'.format(self.db_name), echo=False)
         df_join.to_sql(res_lyr, con=engine, if_exists='replace', index=False,
