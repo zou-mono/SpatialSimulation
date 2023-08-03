@@ -178,7 +178,7 @@ def field_cal(dataSource, lyr_name_Grid, vGrid_field, lyr_name_PotentialLand, vP
 
         srs = lyr_Grid.GetSpatialRef()
         srs_id = get_srs_id(srs)
-        exec_str = '''SELECT RecoverGeometryColumn('{}', 'geometry', '{}', "MULTIPOLYGON", "xy")'''.format(
+        exec_str = '''SELECT RecoverGeometryColumn('{}', 'geometry', {}, "MULTIPOLYGON", "xy")'''.format(
             g_lm.name_layer_match, srs_id)
         exec_res = dataSource.ExecuteSQL(exec_str)
         dataSource.ReleaseResultSet(exec_res)

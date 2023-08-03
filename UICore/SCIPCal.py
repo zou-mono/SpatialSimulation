@@ -652,6 +652,8 @@ class Model:
         df_land.set_index(self.name_landid, inplace=True)
 
         res = df_land.join(df_land_IO, on=self.name_landid, how='outer')
+        res.fillna({'io': 1}, inplace=True)
+
         # 最后把临时表写入数据库
         engine = create_engine(r'sqlite:///{}'.format(self.db_name), echo=False)
         res.to_sql(obj_key + "_land", con=engine, if_exists='replace', index=False)
