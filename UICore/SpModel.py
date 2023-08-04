@@ -100,13 +100,15 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
                 log.info("综合评分计算...")
                 model.overall()  # 综合评分
                 ds_path = model.model_res.dataSource
-                log.info("所有模型优化计算步骤完毕，结果导出至模型库{}.".format(os.path.abspath(ds_path)),
+                log.info("所有模型优化计算步骤完毕，正在导出至模型库...",
                          color=success_log_color)
 
                 model.export_spatial_layer(ds_path, obj_names)
+                model.release()
 
                 end = time.time()
-                log.info("完成所有计算步骤，共耗时：{}秒".format("{:.2f}".format(end - start)))
+                log.info("完成所有计算步骤，共耗时：{}秒. 结果保存在模型库{}".format(
+                    "{:.2f}".format(end - start), os.path.abspath(ds_path)))
                 return True, model.model_res
             else:
                 raise Exception("无法完成模型计算，请检查数据和参数设置！")
@@ -307,7 +309,7 @@ def create_temp_sqliteDB_by_qgis(layer, output_file, layer_name, bOpen=False):
     save_options.driverName = 'SQLite'
     save_options.layerName = layer_name
     save_options.datasourceOptions = ["SPATIALITE=YES"]
-    save_options.layerOptions = ["SPATIAL_INDEX=YES"]
+    save_options.layerOptions = ["SPATIAL_INDEX=YES", "FID=OGC_FID"]
     save_options.geometryType = "PROMOTE_TO_MULTI"
     save_options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteLayer  # Update mode
     save_options.EditionCapability = QgsVectorFileWriter.CanAddNewLayer

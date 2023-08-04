@@ -74,6 +74,7 @@ class model_config_params():
     Indicator_pubService = "PublicService"  # 公共服务名称
     Indicator_bi = "BI"  # 职住平衡名称
     Indicator_multi = "multiple"
+    srs_id = '4547'
 
 indicator_translate_dict = {
     model_config_params.Indicator_net: "新增居住建筑量",

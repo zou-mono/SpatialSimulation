@@ -1,3 +1,4 @@
+import sqlite3
 from multiprocessing import cpu_count
 import os, time
 import math
@@ -69,9 +70,15 @@ class Model:
 
         self.obj_dict = {} # 用于存储单目标优化的目标函数, 结构： {变量名称{:变量, :sense}}
 
+        wks = workspaceFactory().get_factory(DataType.sqlite)
+        self.dataSource = wks.openFromFile(self.db_name, 1)
+
         global log
         if logClass is not None:
             log = logClass
+
+    def release(self):
+        del self.dataSource
 
     #  针对每个目标求解的综合评分
     def overall(self):
@@ -614,35 +621,31 @@ class Model:
 
     #  导出结果图形
     def export_spatial_layer(self, ds_path, obj_names):
-        wks = workspaceFactory().get_factory(DataType.sqlite)
-        dataSource = wks.openFromFile(self.db_name, 1)
-        lyr_Grid = dataSource.GetLayerByName(self.name_layer_grid)
-        srs = lyr_Grid.GetSpatialRef()
-        srs_id = get_srs_id(srs)
-
         for obj_name in obj_names:
-            land_name = obj_name + '_land'
+            out_name = obj_name + '_land'
             exec_str = '''SELECT RecoverGeometryColumn('{}', 'GEOMETRY', {}, 'MULTIPOLYGON', 'xy')'''.format(
-                land_name, srs_id)
-            exec_res = dataSource.ExecuteSQL(exec_str)
-            dataSource.ReleaseResultSet(exec_res)
+                out_name, g_cp.srs_id)
+            exec_res = self.dataSource.ExecuteSQL(exec_str)
+            self.dataSource.ReleaseResultSet(exec_res)
 
-            out_lyr = QgsVectorLayer("{}|layername={}".format(self.db_name, land_name),
-                                     land_name, 'ogr')
+            # url = r'''dbname='{}' table="{}" (geometry)'''.format(self.db_name, out_name)
+            url = "{}|layername={}".format(self.db_name, out_name)
+            out_lyr = QgsVectorLayer(url, out_name, 'ogr')
             # output_file_land = os.path.join(model_path, g_lm.name_layer_PotentialLand)
             # self.write_to_model_files(out_lyr, output_file_land, g_lm.name_layer_PotentialLand)
-            self.write_to_model_files(out_lyr, ds_path, land_name)
+            self.write_to_model_files(out_lyr, ds_path, out_name)
 
             #  导出标准单元图层
-            grid_name = obj_name + '_grid'
+            out_name = obj_name + '_grid'
             exec_str = '''SELECT RecoverGeometryColumn('{}', 'GEOMETRY', {}, 'MULTIPOLYGON', 'xy')'''.format(
-                grid_name, srs_id)
-            exec_res = dataSource.ExecuteSQL(exec_str)
-            dataSource.ReleaseResultSet(exec_res)
+                out_name, g_cp.srs_id)
+            exec_res = self.dataSource.ExecuteSQL(exec_str)
+            self.dataSource.ReleaseResultSet(exec_res)
 
-            out_lyr = QgsVectorLayer("{}|layername={}".format(self.db_name, grid_name),
-                                     grid_name, 'ogr')
-            self.write_to_model_files(out_lyr, ds_path, grid_name)
+            # url = r'''dbname='{}' table="{}" (geometry)'''.format(self.db_name, out_name)
+            url = "{}|layername={}".format(self.db_name, out_name)
+            out_lyr = QgsVectorLayer(url, out_name, 'ogr')
+            self.write_to_model_files(out_lyr, ds_path, out_name)
 
     def join_land_to_temp(self, obj_key, df_land_IO):
         r = self.m_db.execute_dict('''
@@ -655,8 +658,13 @@ class Model:
         res.fillna({'io': 1}, inplace=True)
 
         # 最后把临时表写入数据库
-        engine = create_engine(r'sqlite:///{}'.format(self.db_name), echo=False)
-        res.to_sql(obj_key + "_land", con=engine, if_exists='replace', index=False)
+        # engine = create_engine(r'sqlite:///{}'.format(self.db_name), echo=False)
+        self.m_db.connect()
+        # res.to_sql(obj_key + '_land', con=self.m_db.connection, if_exists='replace', index=False)
+        res.to_sql(obj_key + '_land', con=self.m_db.connection, if_exists='replace', index=False,
+                   dtype={
+                       'ogc_fid': 'INTEGER PRIMARY KEY'
+                   })  # 这里必须指定一个primary key，否则会把rowid当做FID
 
     # 将join后的表创建一张临时表
     def join_grid_to_temp(self, obj_key, df_Unit_BI):
@@ -722,16 +730,13 @@ class Model:
         res = res.join(df_Unit_BI, on=self.name_unitid, how="outer")
 
         # 最后把临时表写入数据库，表名叫 obj_key + '_grid'
-        engine = create_engine(r'sqlite:///{}'.format(self.db_name), echo=False)
-        res.to_sql(obj_key + '_grid', con=engine, if_exists='replace', index=False)
-
-
-        # srs = lyr_Grid.GetSpatialRef()
-        # srs_id = get_srs_id(srs)
-        # exec_str = '''SELECT RecoverGeometryColumn('{}', 'geometry', {}, "MULTIPOLYGON", "xy")'''.format(
-        #     g_lm.name_layer_match, srs_id)
-        # exec_res = dataSource.ExecuteSQL(exec_str)
-        # dataSource.ReleaseResultSet(exec_res)
+        # engine = create_engine(r'sqlite:///{}'.format(self.db_name), echo=False)
+        self.m_db.connect()
+        # res.to_sql(obj_key + '_grid', con=self.m_db.connection, if_exists='replace', index=False)
+        res.to_sql(obj_key + '_grid', con=self.m_db.connection, if_exists='replace', index=False,
+                   dtype={
+                       'ogc_fid': 'INTEGER PRIMARY KEY'
+                   })
 
     # 在原有表基础上join新字段
     def join_result_to_origin_layer(self, df_join, origin_lyr, res_lyr,  index_col_name, join_col_name, data_type, default_value):
@@ -769,6 +774,13 @@ class Model:
         save_options.EditionCapability = QgsVectorFileWriter.CanAddNewLayer
         transform_context = QgsProject.instance().transformContext()
         layer.setProviderEncoding("utf-8")
+
+        #  把原来默认的ogc_fid去掉
+        fid_index = layer.fields().indexFromName('ogc_fid')
+        if fid_index > -1:
+            out_fieldList = layer.attributeList()
+            out_fieldList.remove(fid_index)
+            save_options.attributes = out_fieldList
 
         error = QgsVectorFileWriter.writeAsVectorFormatV3(layer,
                                                           output_file,

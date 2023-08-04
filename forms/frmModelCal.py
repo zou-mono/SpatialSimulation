@@ -19,7 +19,7 @@ from qgis._core import QgsVectorLayer, QgsProject, QgsVectorFileWriter, QgsStyle
 
 from UI.UIModelCal import Ui_frmModelCal
 from UICore.SpModel import modelCal
-from UICore.common import get_qgis_style, get_field_index_no_case
+from UICore.common import get_qgis_style, get_field_index_no_case, get_srs_id
 from UICore.log4p import Log
 from UICore.DataFactory import workspaceFactory
 from osgeo import ogr, gdal
@@ -518,6 +518,9 @@ class frmModelCal(QWidget, Ui_frmModelCal):
 
                 lyr_Grid = ds_Grid.GetLayer(0)
                 lyr_PotentialLand = ds_PotentialLand.GetLayer(0)
+
+                srs = lyr_Grid.GetSpatialRef()
+                g_cp.srs_id = get_srs_id(srs)
 
                 log.info("模型输入参数检查...")
                 self.check_model_param()
