@@ -1,6 +1,8 @@
-from PyQt5.QtCore import QItemSelection, QItemSelectionModel, pyqtSlot, pyqtProperty, Qt, QPoint
-from PyQt5.QtGui import QCursor, QPixmap, QIcon
+from PyQt5.QtCore import QItemSelection, QItemSelectionModel, pyqtSlot, pyqtProperty, Qt, QPoint, QEvent
+from PyQt5.QtGui import QCursor, QPixmap, QIcon, QKeyEvent
 from PyQt5.QtWidgets import QTreeWidget, QAbstractItemView, QStyleFactory, QTreeWidgetItem, QMenu, QAction
+from PyQt5.uic.properties import QtGui
+from qgis.PyQt import QtCore
 from qgis._core import QgsVectorLayer, QgsProject, QgsLayerTreeLayer, QgsLayerTreeNode
 from qgis._gui import QgsLayerTreeView, QgsMapCanvas, QgsLayerTreeMapCanvasBridge
 
@@ -22,10 +24,12 @@ class Model_Tree(QTreeWidget):
 
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.on_contextMenuRequested)
-        self.currentItemChanged.connect(self.on_currentItemChanged)
+        # self.currentItemChanged.connect(self.on_currentItemChanged)
+        self.itemSelectionChanged.connect(self.on_itemSelectionChanged)
+
+        self.bMultiSelect = False
 
         self.node_dict = {}  # 用来存储tocView上已经加载的图层，如果有重复的就不再加载
-        # self.itemSelectionChanged.connect(self.tree_model_selectionChanged)
 
     def setMapModel(self, bridge):
         if isinstance(bridge, QgsLayerTreeMapCanvasBridge):
@@ -34,9 +38,29 @@ class Model_Tree(QTreeWidget):
             self.mapCanvas = bridge.mapCanvas()
             self.root = self.project.layerTreeRoot()
 
-    @Slot(QTreeWidgetItem, QTreeWidgetItem)
-    def on_currentItemChanged(self, cur_item: QTreeWidgetItem, previous_item: QTreeWidgetItem):
-        if len(self.selectionModel().selectedIndexes()) != 1:
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        self.bMultiSelect = False
+        if event.key() == Qt.Key_Control:
+            self.bMultiSelect = True
+        super(Model_Tree, self).keyPressEvent(event)
+
+    def keyReleaseEvent(self, event: QKeyEvent) -> None:
+        if event.key() == Qt.Key_Control:
+            self.bMultiSelect = False
+        super(Model_Tree, self).keyReleaseEvent(event)
+
+    # @Slot(QTreeWidgetItem, QTreeWidgetItem)
+    # def on_currentItemChanged(self, cur_item: QTreeWidgetItem, previous_item: QTreeWidgetItem):
+    def on_itemSelectionChanged(self):
+        if len(self.selectionModel().selectedIndexes()) != 1:  # 如果是多选不处理
+            return
+
+        if self.bMultiSelect:
+            return
+
+        cur_item = self.currentItem()
+
+        if cur_item is None:
             return
 
         if cur_item.parent() is None:
@@ -53,30 +77,24 @@ class Model_Tree(QTreeWidget):
         node_key = cur_model.ID + "_" + cur_solution
         node_name = cur_solution_name + "_" + cur_model.name
 
-        # lyr_grid_net = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_grid_name), lyr_grid_name, 'ogr')
-        # lyr_grid_demo = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_grid_name), lyr_grid_name, 'ogr')
-        # lyr_grid_acc = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_grid_name), lyr_grid_name, 'ogr')
-        # lyr_grid_publicService = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_grid_name), lyr_grid_name, 'ogr')
+        self.project.removeAllMapLayers()
 
         layers = []
         for key, group_name in toc_groups.items():
-            node_key = node_key + "_" + key
-            if node_key in self.node_dict:
-                # lyr = self.node_dict[node_key]
-                return
-            else:
-                if key == g_lm.name_io:
-                    lyr = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_land_name), node_name, 'ogr')
-                else:
-                    lyr = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_grid_name), node_name, 'ogr')
-                self.node_dict[node_key] = lyr
+            lyr = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_land_name), node_name, 'ogr')
+            # node_key = node_key + "_" + key
+            # if node_key in self.node_dict:
+            #     return
+            # else:
+            #     if key == g_lm.name_io:
+            #         lyr = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_land_name), node_name, 'ogr')
+            #     else:
+            #         lyr = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_grid_name), node_name, 'ogr')
+            #     self.node_dict[node_key] = lyr
 
             if lyr.isValid():
                 cur_group = self.root.findGroup(group_name)
                 self.project.addMapLayer(lyr, False)
-                # layerNode = QgsLayerTreeLayer(lyr)
-                # cur_group.insertChildNode(0, layerNode)
-
                 cur_group.insertLayer(0, lyr)
                 layers.append(lyr)
                 cur_group.setItemVisibilityChecked(True)
@@ -86,7 +104,7 @@ class Model_Tree(QTreeWidget):
         if len(layers) > 0:
             self.mapCanvas.setLayers(layers)
             self.mapCanvas.refresh()
-        print(cur_solution)
+        # print(cur_solution)
 
     @Slot(QItemSelection, QItemSelection)
     def on_selectionChanged(self, selected: QItemSelection, deselected: QItemSelection):

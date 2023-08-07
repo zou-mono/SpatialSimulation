@@ -246,7 +246,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
     def checkChanged(self, node: QgsLayerTreeNode):
         groups = self.root.findGroups()
 
-        print(node.name() + "_" + str(node.nodeType()))
+        # print(node.name() + "_" + str(node.nodeType()))
 
         if node.nodeType() == 0:
             if node.isVisible():
@@ -488,7 +488,12 @@ if __name__ == '__main__':
     model_res1.ID = str(uuid.uuid1())
     model_res1.name = 'model_2023-07-31-16-08-05'
     model_res1.dataSource = r'D:\空间模拟\SpatialSimulation\res\model_files\model_2023-08-04-16-39-36.sqlite'
-    model_res1.layers = {'land': '居住专规潜力用地', 'grid': '标准单元', 'multiple': {'land': 'multiple_land', 'grid': 'multiple_grid'}, 'NetIncRPo': {'land': 'NetIncRPo_land', 'grid': 'NetIncRPo_grid'}, 'DemoBld': {'land': 'DemoBld_land', 'grid': 'DemoBld_grid'}, 'Acc': {'land': 'Acc_land', 'grid': 'Acc_grid'}, 'PublicService': {'land': 'PublicService_land', 'grid': 'PublicService_grid'}}
+    model_res1.layers = {'land': '居住专规潜力用地', 'grid': '标准单元',
+                         'multiple': {'land': 'multiple_land', 'grid': 'multiple_grid'},
+                         'NetIncRPo': {'land': 'NetIncRPo_land', 'grid': 'NetIncRPo_grid'},
+                         'DemoBld': {'land': 'DemoBld_land', 'grid': 'DemoBld_grid'},
+                         'Acc': {'land': 'Acc_land', 'grid': 'Acc_grid'},
+                         'PublicService': {'land': 'PublicService_land', 'grid': 'PublicService_grid'}}
     model_res1.ranges = {'NetIncRPo': [0, 34885748.643418014], 'DemoBld': [-54045505.95386531, 0], 'Acc': [0, 35090984.655], 'PublicService': [0, 16760.1601], 'BI': [0, 21.62210046]}
     model_res1.score = {'multiple': {'current': {'NetIncRPo': 15364225.354680039, 'DemoBld': -15317557.4342225, 'Acc': 24312160.185000002, 'PublicService': 11867.470599999995, 'BI': 2.6562270999999997}, 'overall': 53.62}, 'NetIncRPo': {'current': {'NetIncRPo': 18535284.13230504, 'DemoBld': -12161314.008775942, 'Acc': 24401861.816999998, 'PublicService': 3908.6966999999995, 'BI': 2.7468455999999994}, 'overall': 47.24}, 'DemoBld': {'current': {'NetIncRPo': 16300817.014947858, 'DemoBld': -9662249.73705215, 'Acc': 22585008.737999998, 'PublicService': 3347.8207000000025, 'BI': 2.1058622}, 'overall': 44.58}, 'Acc': {'current': {'NetIncRPo': 16300817.014947856, 'DemoBld': -9662249.737052146, 'Acc': 22585008.737999998, 'PublicService': 3347.8207000000025, 'BI': 2.1058622}, 'overall': 44.58}, 'PublicService': {'current': {'NetIncRPo': 11126297.929674478, 'DemoBld': -17895987.479153745, 'Acc': 23763248.848, 'PublicService': 12822.730500000043, 'BI': 2.3017411}, 'overall': 50.73}}
 
@@ -496,9 +501,40 @@ if __name__ == '__main__':
     model_res2.ID = str(uuid.uuid1())
     model_res2.name = 'model_2023-08-04-19-53-49'
     model_res2.dataSource = r'D:\空间模拟\SpatialSimulation\res\model_files\model_2023-08-04-19-53-49.sqlite'
-    model_res2.layers = {'land': '居住专规潜力用地', 'grid': '标准单元', 'multiple': {'land': 'multiple_land', 'grid': 'multiple_grid'}, 'NetIncRPo': {'land': 'NetIncRPo_land', 'grid': 'NetIncRPo_grid'}, 'PublicService': {'land': 'PublicService_land', 'grid': 'PublicService_grid'}}
+    model_res2.layers = {'land': '居住专规潜力用地',
+                         'grid': '标准单元',
+                         'multiple':
+                             {'land': 'multiple_land',
+                              'grid': 'multiple_grid'},
+                         'NetIncRPo': {'land': 'NetIncRPo_land',
+                                       'grid': 'NetIncRPo_grid'},
+                         'PublicService': {'land': 'PublicService_land',
+                                           'grid': 'PublicService_grid'}}
     model_res2.ranges = {'NetIncRPo': [0, 69771497.28683603], 'DemoBld': [-108091011.90773061, 0], 'Acc': [0, 70181969.31], 'PublicService': [0, 33520.3202], 'BI': [0, 41.58697848]}
-    model_res2.score = {'multiple': {'current': {'NetIncRPo': 50218241.39201991, 'DemoBld': -69489710.18416594, 'Acc': 59413208.53, 'PublicService': 28643.168699999995, 'BI': 22.621105120000003}, 'overall': 66.44}, 'NetIncRPo': {'current': {'NetIncRPo': 53421098.246358156, 'DemoBld': -66206336.222641245, 'Acc': 59492920.448, 'PublicService': 20621.439300000002, 'BI': 22.711723620000004}, 'overall': 63.24}, 'DemoBld': {'current': {'NetIncRPo': 51186565.658365875, 'DemoBld': -63707755.690917455, 'Acc': 57675993.393, 'PublicService': 20107.980800000005, 'BI': 22.070740220000005}, 'overall': 61.93}, 'Acc': {'current': {'NetIncRPo': 51186565.65836587, 'DemoBld': -63707755.69091745, 'Acc': 57675993.393, 'PublicService': 20107.980800000005, 'BI': 22.070740220000005}, 'overall': 61.93}, 'PublicService': {'current': {'NetIncRPo': 46000465.9930925, 'DemoBld': -72029567.07301903, 'Acc': 58882935.433, 'PublicService': 29595.82500000001, 'BI': 22.266619120000005}, 'overall': 65.01}}
+    model_res2.score = {'multiple':
+                            {'current':
+                                 {'NetIncRPo': 50218241.39201991,
+                                  'DemoBld': -69489710.18416594,
+                                  'Acc': 59413208.53,
+                                  'PublicService': 28643.168699999995,
+                                  'BI': 22.621105120000003},
+                             'overall': 66.44},
+                        'NetIncRPo':
+                            {'current':
+                                 {'NetIncRPo': 53421098.246358156,
+                                  'DemoBld': -66206336.222641245,
+                                  'Acc': 59492920.448,
+                                  'PublicService': 20621.439300000002,
+                                  'BI': 22.711723620000004},
+                             'overall': 63.24},
+                        'PublicService':
+                            {'current':
+                                 {'NetIncRPo': 46000465.9930925,
+                                  'DemoBld': -72029567.07301903,
+                                  'Acc': 58882935.433,
+                                  'PublicService': 29595.82500000001,
+                                  'BI': 22.266619120000005},
+                             'overall': 65.01}}
 
     window.updateForm([model_res1, model_res2])
     # window.setWindowFlags(Qt.Window)
