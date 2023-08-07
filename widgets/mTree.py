@@ -1,7 +1,10 @@
 from PyQt5.QtCore import QItemSelection, QItemSelectionModel, pyqtSlot, pyqtProperty, Qt, QPoint
 from PyQt5.QtGui import QCursor, QPixmap, QIcon
 from PyQt5.QtWidgets import QTreeWidget, QAbstractItemView, QStyleFactory, QTreeWidgetItem, QMenu, QAction
-from qgis._gui import QgsLayerTreeView
+from qgis._core import QgsVectorLayer, QgsProject, QgsLayerTreeLayer, QgsLayerTreeNode
+from qgis._gui import QgsLayerTreeView, QgsMapCanvas, QgsLayerTreeMapCanvasBridge
+
+from UICore.Gv import modelRole, toc_groups, model_layer_meta as g_lm, model_config_params as g_cp
 
 Slot = pyqtSlot
 
@@ -13,26 +16,80 @@ class Model_Tree(QTreeWidget):
         self.parent = parent
         self.setStyle(QStyleFactory.create("windows"))
 
-        self.selectionModel().selectionChanged.connect(self.tree_model_selectionChanged)
+        self.selectionModel().selectionChanged.connect(self.on_selectionChanged)
         self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
 
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.on_contextMenuRequested)
+        self.currentItemChanged.connect(self.on_currentItemChanged)
 
-        # self.currentItemChanged.connect(self.tree_model_currentItemChanged)
+        self.node_dict = {}  # 用来存储tocView上已经加载的图层，如果有重复的就不再加载
         # self.itemSelectionChanged.connect(self.tree_model_selectionChanged)
 
-    def setTocView(self, value):
-        if isinstance(value, QgsLayerTreeView):
-            self.tocView = value
+    def setMapModel(self, bridge):
+        if isinstance(bridge, QgsLayerTreeMapCanvasBridge):
+            self.bridge = bridge
+            self.project = bridge.mapCanvas().project()
+            self.mapCanvas = bridge.mapCanvas()
+            self.root = self.project.layerTreeRoot()
 
-    # @Slot(QTreeWidgetItem, QTreeWidgetItem)
-    # def tree_model_currentItemChanged(self, cur_item: QTreeWidgetItem, previous_item: QTreeWidgetItem):
-    #     pass
+    @Slot(QTreeWidgetItem, QTreeWidgetItem)
+    def on_currentItemChanged(self, cur_item: QTreeWidgetItem, previous_item: QTreeWidgetItem):
+        if len(self.selectionModel().selectedIndexes()) != 1:
+            return
+
+        if cur_item.parent() is None:
+            return
+
+        cur_model = cur_item.data(0, modelRole.model)
+        cur_solution = cur_item.data(0, modelRole.solution)['key']
+        cur_solution_name = cur_item.data(0, modelRole.solution)['name']
+
+        cur_ds = cur_model.dataSource
+        lyr_land_name = cur_model.layers[cur_solution]['land']
+        lyr_grid_name = cur_model.layers[cur_solution]['grid']
+
+        node_key = cur_model.ID + "_" + cur_solution
+        node_name = cur_solution_name + "_" + cur_model.name
+
+        # lyr_grid_net = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_grid_name), lyr_grid_name, 'ogr')
+        # lyr_grid_demo = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_grid_name), lyr_grid_name, 'ogr')
+        # lyr_grid_acc = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_grid_name), lyr_grid_name, 'ogr')
+        # lyr_grid_publicService = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_grid_name), lyr_grid_name, 'ogr')
+
+        layers = []
+        for key, group_name in toc_groups.items():
+            node_key = node_key + "_" + key
+            if node_key in self.node_dict:
+                # lyr = self.node_dict[node_key]
+                return
+            else:
+                if key == g_lm.name_io:
+                    lyr = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_land_name), node_name, 'ogr')
+                else:
+                    lyr = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_grid_name), node_name, 'ogr')
+                self.node_dict[node_key] = lyr
+
+            if lyr.isValid():
+                cur_group = self.root.findGroup(group_name)
+                self.project.addMapLayer(lyr, False)
+                # layerNode = QgsLayerTreeLayer(lyr)
+                # cur_group.insertChildNode(0, layerNode)
+
+                cur_group.insertLayer(0, lyr)
+                layers.append(lyr)
+                cur_group.setItemVisibilityChecked(True)
+                # cur_group.setExpanded(False)
+                self.mapCanvas.setExtent(lyr.extent())
+
+        if len(layers) > 0:
+            self.mapCanvas.setLayers(layers)
+            self.mapCanvas.refresh()
+        print(cur_solution)
 
     @Slot(QItemSelection, QItemSelection)
-    def tree_model_selectionChanged(self, selected: QItemSelection, deselected: QItemSelection):
+    def on_selectionChanged(self, selected: QItemSelection, deselected: QItemSelection):
         if selected.isEmpty():
             return
 

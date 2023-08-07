@@ -97,7 +97,7 @@ def modelCal(model_name, layers, lyr_name_Grid, lyr_name_PotentialLand, vGrid_fi
                             model.execute_obj('s_' + index,  obj, sense, w)
                             obj_names.append(index)
 
-                log.info("综合评分计算...")
+                log.info("计算综合评分...")
                 model.overall()  # 综合评分
                 ds_path = model.model_res.dataSource
                 log.info("所有模型优化计算步骤完毕，正在导出至模型库...",

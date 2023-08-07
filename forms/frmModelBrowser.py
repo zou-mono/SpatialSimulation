@@ -14,7 +14,7 @@ from qgis._gui import QgsFeatureListModel, QgsLayerTreeView, QgsLayerTreeMapCanv
 
 from UI.UIModelBrowser import Ui_ModelBrowser
 from UICore.Gv import SplitterState, Dock, model_layer_meta, model_config_params, indicator_translate_dict, \
-    get_main_path, modelRole, Window_titles, Tools
+    get_main_path, modelRole, Window_titles, Tools, toc_groups
 from UICore.SCIPCal import ModelResult
 import icons_rc
 from UICore.common import get_field_index_no_case, get_qgis_style
@@ -37,15 +37,6 @@ log = Log(__name__)
 
 test_land = None
 test_grid = None
-
-toc_groups = {
-    g_lm.name_io: '优化方案用地空间布局图',
-    g_cp.Indicator_net: '新增居住建筑量空间布局图',
-    g_cp.Indicator_demo: '拆除建筑量空间布局图',
-    g_cp.Indicator_acc: '交通可达性空间布局图',
-    g_cp.Indicator_pubService: '公共服务水平空间布局图',
-    g_cp.Indicator_bi: '职住平衡空间布局图'
-}
 
 class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
     def __init__(self, parent=None, chart_path=""):
@@ -78,7 +69,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.splitter_preview.setupUi()
 
         self.splitter_toc.setOrientation(Qt.Vertical)
-        self.splitter_toc.setProperty("Stretch", SplitterState.collapsed)
+        self.splitter_toc.setProperty("Stretch", SplitterState.expanded)
         self.splitter_toc.setProperty("Dock", Dock.down)
         self.splitter_toc.setProperty("WidgetToHide", self.tocView)
         self.splitter_toc.setProperty("ExpandParentForm", False)
@@ -123,7 +114,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         # self.tree_model.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         # self.tree_model.selectionModel().selectionChanged.connect(self.ttt)
 
-        # self.tree_model.setTocView(self.tocView)  # 将tree_model关联的tocView传入
+        self.tree_model.setMapModel(self.bridge)  # 将tree_model关联的信息传入
         self.bFirst = True
         self.get_field_names()
         self.clear()
@@ -209,18 +200,18 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
 
                 for sol_key, sol_v in model.score.items():
                     if sol_key == model_config_params.Indicator_multi:
-                        child = "多目标最优方案"
+                        sol_name = "多目标最优方案"
                     else:
-                        child = "单目标:" + indicator_translate_dict[sol_key] + "最优方案"
+                        sol_name = "单目标:" + indicator_translate_dict[sol_key] + "最优方案"
 
-                    child = QTreeWidgetItem([child])
+                    child = QTreeWidgetItem([sol_name])
                     child.setIcon(0, QIcon(QPixmap(":/icons/icons/优化方案.svg")))
                     child.setData(0, modelRole.model, model)
-                    child.setData(0, modelRole.solution, sol_v)
+                    child.setData(0, modelRole.solution, {
+                        'name': sol_name,
+                        'key': sol_key
+                    })
                     layItem.addChild(child)
-
-                    lyr_grid_name = model.layers['grid']
-                    lyr_land_name = model.layers['land']
 
                 # for k, v in model.layers.items():
                 #     lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource, v) , v, 'ogr')
@@ -244,7 +235,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
 
         groups = self.root.findGroups()
         for group in groups:
-            group.setItemVisibilityChecked(False)
+            group.setItemVisibilityCheckedRecursive(False)
             # group.setDragEnabled(False)
 
     # def toc_dataChanged(self, topleft: QModelIndex, bottomright: QModelIndex, roles):
@@ -254,10 +245,18 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
     #  group设计为单选，排他性
     def checkChanged(self, node: QgsLayerTreeNode):
         groups = self.root.findGroups()
-        if node.isVisible():
-            for group in groups:
-                if group != node:
-                    group.setItemVisibilityChecked(False)
+
+        print(node.name() + "_" + str(node.nodeType()))
+
+        if node.nodeType() == 0:
+            if node.isVisible():
+                for group in groups:
+                    if group != node:
+                        group.setItemVisibilityCheckedRecursive(False)
+                    else:
+                        group.setItemVisibilityCheckedRecursive(True)
+            else:
+                node.setItemVisibilityCheckedRecursive(False)
 
     # 绘制直方图
     def draw_histogram(self, model):
@@ -488,18 +487,18 @@ if __name__ == '__main__':
     model_res1 = ModelResult()
     model_res1.ID = str(uuid.uuid1())
     model_res1.name = 'model_2023-07-31-16-08-05'
-    model_res1.dataSource = r'D:\空间模拟\SpatialSimulation\res\model_files\model_2023-07-31-16-08-05.sqlite'
-    model_res1.layers = {'land': '居住专规潜力用地_0621', 'grid': '标准单元_0621'}
+    model_res1.dataSource = r'D:\空间模拟\SpatialSimulation\res\model_files\model_2023-08-04-16-39-36.sqlite'
+    model_res1.layers = {'land': '居住专规潜力用地', 'grid': '标准单元', 'multiple': {'land': 'multiple_land', 'grid': 'multiple_grid'}, 'NetIncRPo': {'land': 'NetIncRPo_land', 'grid': 'NetIncRPo_grid'}, 'DemoBld': {'land': 'DemoBld_land', 'grid': 'DemoBld_grid'}, 'Acc': {'land': 'Acc_land', 'grid': 'Acc_grid'}, 'PublicService': {'land': 'PublicService_land', 'grid': 'PublicService_grid'}}
     model_res1.ranges = {'NetIncRPo': [0, 34885748.643418014], 'DemoBld': [-54045505.95386531, 0], 'Acc': [0, 35090984.655], 'PublicService': [0, 16760.1601], 'BI': [0, 21.62210046]}
     model_res1.score = {'multiple': {'current': {'NetIncRPo': 15364225.354680039, 'DemoBld': -15317557.4342225, 'Acc': 24312160.185000002, 'PublicService': 11867.470599999995, 'BI': 2.6562270999999997}, 'overall': 53.62}, 'NetIncRPo': {'current': {'NetIncRPo': 18535284.13230504, 'DemoBld': -12161314.008775942, 'Acc': 24401861.816999998, 'PublicService': 3908.6966999999995, 'BI': 2.7468455999999994}, 'overall': 47.24}, 'DemoBld': {'current': {'NetIncRPo': 16300817.014947858, 'DemoBld': -9662249.73705215, 'Acc': 22585008.737999998, 'PublicService': 3347.8207000000025, 'BI': 2.1058622}, 'overall': 44.58}, 'Acc': {'current': {'NetIncRPo': 16300817.014947856, 'DemoBld': -9662249.737052146, 'Acc': 22585008.737999998, 'PublicService': 3347.8207000000025, 'BI': 2.1058622}, 'overall': 44.58}, 'PublicService': {'current': {'NetIncRPo': 11126297.929674478, 'DemoBld': -17895987.479153745, 'Acc': 23763248.848, 'PublicService': 12822.730500000043, 'BI': 2.3017411}, 'overall': 50.73}}
 
     model_res2 = ModelResult()
     model_res2.ID = str(uuid.uuid1())
-    model_res2.name = 'model_2023-07-31-16-15-16'
-    model_res2.dataSource = r'D:\空间模拟\SpatialSimulation\res\model_files\model_2023-07-31-16-15-16.sqlite'
-    model_res2.layers = {'land': '居住专规潜力用地_0621_s2', 'grid': '标准单元_0621_s2'}
-    model_res2.ranges = {'NetIncRPo': [0, 4925353.334999999], 'DemoBld': [-18825600.5823172, 0], 'Acc': [0, 10739080.282], 'PublicService': [0, 3896.1128], 'BI': [0, 6.633899399999999]}
-    model_res2.score = {'multiple': {'current': {'NetIncRPo': 2308637.0150000034, 'DemoBld': -2961031.0319999973, 'Acc': 4084564.28, 'PublicService': 1808.1588999999956, 'BI': 0.7677029}, 'overall': 45.43}, 'NetIncRPo': {'current': {'NetIncRPo': 2001649.9030000013, 'DemoBld': -3296048.890999998, 'Acc': 4178685.6180000002, 'PublicService': 2032.3335999999965, 'BI': 0.7677029}, 'overall': 45.16}, 'PublicService': {'current': {'NetIncRPo': 3007943.5429999996, 'DemoBld': -2440562.0450000004, 'Acc': 4091691.2130000005, 'PublicService': 733.2966999999999, 'BI': 0.8583214}, 'overall': 43.59}}
+    model_res2.name = 'model_2023-08-04-19-53-49'
+    model_res2.dataSource = r'D:\空间模拟\SpatialSimulation\res\model_files\model_2023-08-04-19-53-49.sqlite'
+    model_res2.layers = {'land': '居住专规潜力用地', 'grid': '标准单元', 'multiple': {'land': 'multiple_land', 'grid': 'multiple_grid'}, 'NetIncRPo': {'land': 'NetIncRPo_land', 'grid': 'NetIncRPo_grid'}, 'PublicService': {'land': 'PublicService_land', 'grid': 'PublicService_grid'}}
+    model_res2.ranges = {'NetIncRPo': [0, 69771497.28683603], 'DemoBld': [-108091011.90773061, 0], 'Acc': [0, 70181969.31], 'PublicService': [0, 33520.3202], 'BI': [0, 41.58697848]}
+    model_res2.score = {'multiple': {'current': {'NetIncRPo': 50218241.39201991, 'DemoBld': -69489710.18416594, 'Acc': 59413208.53, 'PublicService': 28643.168699999995, 'BI': 22.621105120000003}, 'overall': 66.44}, 'NetIncRPo': {'current': {'NetIncRPo': 53421098.246358156, 'DemoBld': -66206336.222641245, 'Acc': 59492920.448, 'PublicService': 20621.439300000002, 'BI': 22.711723620000004}, 'overall': 63.24}, 'DemoBld': {'current': {'NetIncRPo': 51186565.658365875, 'DemoBld': -63707755.690917455, 'Acc': 57675993.393, 'PublicService': 20107.980800000005, 'BI': 22.070740220000005}, 'overall': 61.93}, 'Acc': {'current': {'NetIncRPo': 51186565.65836587, 'DemoBld': -63707755.69091745, 'Acc': 57675993.393, 'PublicService': 20107.980800000005, 'BI': 22.070740220000005}, 'overall': 61.93}, 'PublicService': {'current': {'NetIncRPo': 46000465.9930925, 'DemoBld': -72029567.07301903, 'Acc': 58882935.433, 'PublicService': 29595.82500000001, 'BI': 22.266619120000005}, 'overall': 65.01}}
 
     window.updateForm([model_res1, model_res2])
     # window.setWindowFlags(Qt.Window)

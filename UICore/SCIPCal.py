@@ -622,30 +622,35 @@ class Model:
     #  导出结果图形
     def export_spatial_layer(self, ds_path, obj_names):
         for obj_name in obj_names:
-            out_name = obj_name + '_land'
+            out_land_name = obj_name + '_land'
             exec_str = '''SELECT RecoverGeometryColumn('{}', 'GEOMETRY', {}, 'MULTIPOLYGON', 'xy')'''.format(
-                out_name, g_cp.srs_id)
+                out_land_name, g_cp.srs_id)
             exec_res = self.dataSource.ExecuteSQL(exec_str)
             self.dataSource.ReleaseResultSet(exec_res)
 
             # url = r'''dbname='{}' table="{}" (geometry)'''.format(self.db_name, out_name)
-            url = "{}|layername={}".format(self.db_name, out_name)
-            out_lyr = QgsVectorLayer(url, out_name, 'ogr')
+            url = "{}|layername={}".format(self.db_name, out_land_name)
+            out_lyr = QgsVectorLayer(url, out_land_name, 'ogr')
             # output_file_land = os.path.join(model_path, g_lm.name_layer_PotentialLand)
             # self.write_to_model_files(out_lyr, output_file_land, g_lm.name_layer_PotentialLand)
-            self.write_to_model_files(out_lyr, ds_path, out_name)
+            self.write_to_model_files(out_lyr, ds_path, out_land_name)
 
             #  导出标准单元图层
-            out_name = obj_name + '_grid'
+            out_grid_name = obj_name + '_grid'
             exec_str = '''SELECT RecoverGeometryColumn('{}', 'GEOMETRY', {}, 'MULTIPOLYGON', 'xy')'''.format(
-                out_name, g_cp.srs_id)
+                out_grid_name, g_cp.srs_id)
             exec_res = self.dataSource.ExecuteSQL(exec_str)
             self.dataSource.ReleaseResultSet(exec_res)
 
             # url = r'''dbname='{}' table="{}" (geometry)'''.format(self.db_name, out_name)
-            url = "{}|layername={}".format(self.db_name, out_name)
-            out_lyr = QgsVectorLayer(url, out_name, 'ogr')
-            self.write_to_model_files(out_lyr, ds_path, out_name)
+            url = "{}|layername={}".format(self.db_name, out_grid_name)
+            out_lyr = QgsVectorLayer(url, out_grid_name, 'ogr')
+            self.write_to_model_files(out_lyr, ds_path, out_grid_name)
+
+            self.model_res.layers[obj_name] = {
+                'land': out_land_name,
+                'grid': out_grid_name
+            }
 
     def join_land_to_temp(self, obj_key, df_land_IO):
         r = self.m_db.execute_dict('''
