@@ -3,7 +3,7 @@ import os
 import uuid
 
 from PyQt5.QtCore import Qt, QSize, pyqtSlot, QUrl, QTimer, QItemSelection, QModelIndex, QItemSelectionModel
-from PyQt5.QtGui import QIcon, QPixmap, QColor
+from PyQt5.QtGui import QIcon, QPixmap, QColor, QFont
 from PyQt5.QtWidgets import QMainWindow, QStyleFactory, QTreeWidgetItem, QMessageBox, QMenu, QAction, QHBoxLayout,\
     QAbstractItemView
 import sys
@@ -81,7 +81,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.tabWidget_model.setTabText(0, "预览图")
         self.tabWidget_model.setTabText(1, "模型信息")
 
-        self.tree_model.setStyle(QStyleFactory.create("windows"))
+        # self.tree_model.setStyle(QStyleFactory.create("windows"))
         # self.tree_model.currentItemChanged.connect(self.tree_model_currentItemChanged)
         # self.tree_model.itemSelectionChanged.connect(self.tree_model_selectionChanged)
         self.tree_model.selectionModel().selectionChanged.connect(self.tree_model_selectionChanged)
@@ -102,14 +102,18 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.model = QgsLayerTreeModel(self.root, self)
         self.model.setFlag(QgsLayerTreeModel.AllowNodeReorder)
         self.model.setFlag(QgsLayerTreeModel.AllowNodeChangeVisibility)
+        self.model.setFlag(QgsLayerTreeModel.UseTextFormatting)
         self.tocView.setModel(self.model)
+
         self.bridge = QgsLayerTreeMapCanvasBridge(self.root, self.mapPreviewer, self)
+
+        # self.tocView.viewOptions().showDecorationSelected = True
         # self.tocView.selectionModel().dataChanged.connect(self.toc_selectionChanged)
         # self.model.dataChanged.connect(self.toc_dataChanged)
         self.root.visibilityChanged.connect(self.checkChanged)
         self.tocView.setDragEnabled(False)
 
-        # self.setStyle(QStyleFactory.create("windows"))
+        # self.setStyle(QStyleFactory.create("fusion"))
         # self.tree_model.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         # self.tree_model.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         # self.tree_model.selectionModel().selectionChanged.connect(self.ttt)
@@ -481,6 +485,16 @@ if __name__ == '__main__':
     # app = QApplication(sys.argv)
     QgsApplication.setPrefixPath('', True)
     app = QgsApplication([], True)
+    cur_path, filename = os.path.split(os.path.abspath("./"))
+    app.setPkgDataPath(os.path.abspath(cur_path))
+
+    # app.setUITheme('Blend of Gray')
+    QgsApplication.setUITheme('default')
+    log.debug(app.uiThemes())
+    # style = QStyleFactory.create("fusion")
+    style = QStyleFactory.create("fusion")
+    app.setStyle(style)
+    # app.setStyle('Fusion')
 
     window = UI_ModelBrowser(chart_path=os.path.abspath(r'../resources/radar_hist.html'))
 

@@ -1,5 +1,5 @@
 from PyQt5.QtCore import QItemSelection, QItemSelectionModel, pyqtSlot, pyqtProperty, Qt, QPoint, QEvent
-from PyQt5.QtGui import QCursor, QPixmap, QIcon, QKeyEvent
+from PyQt5.QtGui import QCursor, QPixmap, QIcon, QKeyEvent, QFont
 from PyQt5.QtWidgets import QTreeWidget, QAbstractItemView, QStyleFactory, QTreeWidgetItem, QMenu, QAction
 from PyQt5.uic.properties import QtGui
 from qgis.PyQt import QtCore
@@ -26,7 +26,6 @@ class Model_Tree(QTreeWidget):
         self.customContextMenuRequested.connect(self.on_contextMenuRequested)
         # self.currentItemChanged.connect(self.on_currentItemChanged)
         self.itemSelectionChanged.connect(self.on_itemSelectionChanged)
-
         self.bMultiSelect = False
 
         self.node_dict = {}  # 用来存储tocView上已经加载的图层，如果有重复的就不再加载
@@ -81,7 +80,10 @@ class Model_Tree(QTreeWidget):
 
         layers = []
         for key, group_name in toc_groups.items():
-            lyr = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_land_name), node_name, 'ogr')
+            if key == g_lm.name_io:
+                lyr = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_land_name), node_name, 'ogr')
+            else:
+                lyr = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_grid_name), node_name, 'ogr')
             # node_key = node_key + "_" + key
             # if node_key in self.node_dict:
             #     return
