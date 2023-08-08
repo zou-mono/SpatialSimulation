@@ -126,8 +126,6 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.chart_path = chart_path
         self.init_tocView()
 
-    # def ttt(self, selected, deselected):
-    #     print(len(selected.indexes()))
 
     def get_field_names(self):
         self.name_area = model_layer_meta.name_potentialLand_area.lower()

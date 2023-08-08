@@ -65,6 +65,10 @@ class Model_Tree(QTreeWidget):
         if cur_item.parent() is None:
             return
 
+        self.project.removeAllMapLayers()  # 把树上已有的所有图层都移除
+        self.add_item_to_tocView(cur_item)
+
+    def add_item_to_tocView(self, cur_item):
         cur_model = cur_item.data(0, modelRole.model)
         cur_solution = cur_item.data(0, modelRole.solution)['key']
         cur_solution_name = cur_item.data(0, modelRole.solution)['name']
@@ -73,10 +77,7 @@ class Model_Tree(QTreeWidget):
         lyr_land_name = cur_model.layers[cur_solution]['land']
         lyr_grid_name = cur_model.layers[cur_solution]['grid']
 
-        node_key = cur_model.ID + "_" + cur_solution
         node_name = cur_solution_name + "_" + cur_model.name
-
-        self.project.removeAllMapLayers()
 
         layers = []
         for key, group_name in toc_groups.items():
@@ -84,15 +85,6 @@ class Model_Tree(QTreeWidget):
                 lyr = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_land_name), node_name, 'ogr')
             else:
                 lyr = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_grid_name), node_name, 'ogr')
-            # node_key = node_key + "_" + key
-            # if node_key in self.node_dict:
-            #     return
-            # else:
-            #     if key == g_lm.name_io:
-            #         lyr = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_land_name), node_name, 'ogr')
-            #     else:
-            #         lyr = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_grid_name), node_name, 'ogr')
-            #     self.node_dict[node_key] = lyr
 
             if lyr.isValid():
                 cur_group = self.root.findGroup(group_name)
@@ -100,13 +92,11 @@ class Model_Tree(QTreeWidget):
                 cur_group.insertLayer(0, lyr)
                 layers.append(lyr)
                 cur_group.setItemVisibilityChecked(True)
-                # cur_group.setExpanded(False)
                 self.mapCanvas.setExtent(lyr.extent())
 
         if len(layers) > 0:
             self.mapCanvas.setLayers(layers)
             self.mapCanvas.refresh()
-        # print(cur_solution)
 
     @Slot(QItemSelection, QItemSelection)
     def on_selectionChanged(self, selected: QItemSelection, deselected: QItemSelection):
@@ -135,7 +125,7 @@ class Model_Tree(QTreeWidget):
 
     def on_contextMenuRequested(self, pos: QPoint):
         selected_count = len(self.selectionModel().selectedIndexes())
-        index =  self.indexAt(pos)
+        index = self.indexAt(pos)
 
         if selected_count > 1:
             context_menu = QMenu()
@@ -148,12 +138,22 @@ class Model_Tree(QTreeWidget):
 
 #  模型对比
 class QActionModelCompare(QAction):
-    def __init__(self, parent):
+    def __init__(self, parent: Model_Tree):
         super(QActionModelCompare, self).__init__("方案对比", parent)
         self.setIconText("方案对比")
         self.setToolTip("方案对比")
         self.setIcon(QIcon(QPixmap(":/icons/icons/方案对比.svg")))
         self.setEnabled(True)
+        self.triggered.connect(self.on_compare_triggered)
+        self.model_tree = parent
+
+    def on_compare_triggered(self):
+        selected_items = self.model_tree.selectedItems()
+
+        self.model_tree.project.removeAllMapLayers()  # 把树上已有的所有图层都移除
+        for selected_item in selected_items:
+            self.model_tree.add_item_to_tocView(selected_item)
+
 
 class QActionModelInfo(QAction):
     def __init__(self, parent):
