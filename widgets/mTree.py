@@ -1,4 +1,7 @@
-from PyQt5.QtCore import QItemSelection, QItemSelectionModel, pyqtSlot, pyqtProperty, Qt, QPoint, QEvent
+import os
+
+from PyQt5.QtCore import QItemSelection, QItemSelectionModel, pyqtSlot, pyqtProperty, Qt, QPoint, QEvent, QUrl, \
+    pyqtSignal
 from PyQt5.QtGui import QCursor, QPixmap, QIcon, QKeyEvent, QFont
 from PyQt5.QtWidgets import QTreeWidget, QAbstractItemView, QStyleFactory, QTreeWidgetItem, QMenu, QAction
 from PyQt5.uic.properties import QtGui
@@ -6,12 +9,14 @@ from qgis.PyQt import QtCore
 from qgis._core import QgsVectorLayer, QgsProject, QgsLayerTreeLayer, QgsLayerTreeNode
 from qgis._gui import QgsLayerTreeView, QgsMapCanvas, QgsLayerTreeMapCanvasBridge
 
-from UICore.Gv import modelRole, toc_groups, model_layer_meta as g_lm, model_config_params as g_cp
+from UICore.Gv import modelRole, toc_groups, model_layer_meta as g_lm, model_config_params as g_cp, get_main_path
 
 Slot = pyqtSlot
 
 
 class Model_Tree(QTreeWidget):
+    layer_added = pyqtSignal(object)
+
     def __init__(self, parent):
         super(Model_Tree, self).__init__(parent)
 
@@ -28,7 +33,7 @@ class Model_Tree(QTreeWidget):
         self.itemSelectionChanged.connect(self.on_itemSelectionChanged)
         self.bMultiSelect = False
 
-        self.node_dict = {}  # 用来存储tocView上已经加载的图层，如果有重复的就不再加载
+        # self.node_dict = {}  # 用来存储tocView上已经加载的图层，如果有重复的就不再加载
 
     def setMapModel(self, bridge):
         if isinstance(bridge, QgsLayerTreeMapCanvasBridge):
@@ -67,6 +72,7 @@ class Model_Tree(QTreeWidget):
 
         self.project.removeAllMapLayers()  # 把树上已有的所有图层都移除
         self.add_item_to_tocView(cur_item)
+        self.layer_added.emit([cur_item])
 
     def add_item_to_tocView(self, cur_item):
         cur_model = cur_item.data(0, modelRole.model)
@@ -77,7 +83,7 @@ class Model_Tree(QTreeWidget):
         lyr_land_name = cur_model.layers[cur_solution]['land']
         lyr_grid_name = cur_model.layers[cur_solution]['grid']
 
-        node_name = cur_solution_name + "_" + cur_model.name
+        node_name = cur_model.name + "_" + cur_solution_name
 
         layers = []
         for key, group_name in toc_groups.items():
@@ -153,6 +159,8 @@ class QActionModelCompare(QAction):
         self.model_tree.project.removeAllMapLayers()  # 把树上已有的所有图层都移除
         for selected_item in selected_items:
             self.model_tree.add_item_to_tocView(selected_item)
+
+        self.model_tree.layer_added.emit(selected_items)
 
 
 class QActionModelInfo(QAction):

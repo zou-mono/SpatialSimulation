@@ -87,6 +87,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.tree_model.selectionModel().selectionChanged.connect(self.tree_model_selectionChanged)
         self.tree_model.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.tree_model.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.tree_model.layer_added.connect(self.draw_chart)
 
         self.chart_webView.loadFinished.connect(self.chart_webView_loadFinished)
 
@@ -116,7 +117,6 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         # self.setStyle(QStyleFactory.create("fusion"))
         # self.tree_model.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         # self.tree_model.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        # self.tree_model.selectionModel().selectionChanged.connect(self.ttt)
 
         self.tree_model.setMapModel(self.bridge)  # 将tree_model关联的信息传入
         self.bFirst = True
@@ -125,7 +125,6 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
 
         self.chart_path = chart_path
         self.init_tocView()
-
 
     def get_field_names(self):
         self.name_area = model_layer_meta.name_potentialLand_area.lower()
@@ -238,6 +237,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         groups = self.root.findGroups()
         for group in groups:
             group.setItemVisibilityCheckedRecursive(False)
+
             # group.setDragEnabled(False)
 
     # def toc_dataChanged(self, topleft: QModelIndex, bottomright: QModelIndex, roles):
@@ -260,9 +260,28 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
             else:
                 node.setItemVisibilityCheckedRecursive(False)
 
+    # 图层加载完成后绘制相应的chart
+    def draw_chart(self, items: list):
+        if items is None:
+            return
+        if len(items) < 1:
+            return
+
+        self.load_items = items
+
+        if self.chart_path == "":
+            self.chart_path = os.path.join(get_main_path(), "resources", "radar_hist.html")
+        self.chart_webView.load(QUrl.fromLocalFile(os.path.abspath(self.chart_path)))
+
     # 绘制直方图
-    def draw_histogram(self, model):
+    def draw_histogram(self, items):
         transfer_dict = {}
+
+        cur_item = items[0]
+
+        model = cur_item.data(0, modelRole.model)
+        cur_solution = cur_item.data(0, modelRole.solution)['key']
+        cur_solution_name = cur_item.data(0, modelRole.solution)['name']
 
         sqlite_db = Sqlite(model.dataSource)
         exec_str = '''
@@ -347,19 +366,46 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         return transfer_hist, transfer_density, [start, stop, count]
 
     #  绘制雷达图
-    def draw_radar(self, model):
-        ranges = model.ranges
-
-        indicator = []
+    def draw_radar(self, items):
         values = []
-        for k, v in ranges.items():
-            dict = {
-                'text': indicator_translate_dict[k],
-                'max': round(v[1], 2),
-                'min': round(v[0], 2)
-            }
-            values.append(round(v[2], 2))
-            indicator.append(dict)
+        indicator = []
+        indicator_merge_range = {}
+
+        bFirst = True
+        for cur_item in items:
+            model = cur_item.data(0, modelRole.model)
+            cur_solution = cur_item.data(0, modelRole.solution)['key']
+            cur_solution_name = cur_item.data(0, modelRole.solution)['name']
+            node_name = model.name + "_" + cur_solution_name
+
+            scores = model.score
+            ranges = model.ranges
+
+            if bFirst:
+                bFirst = False
+                for k, v in ranges.items():
+                    indicator_merge_range[k] = {
+                        'max': v[1],
+                        'min': v[0]
+                    }
+            else:
+                for k, v in ranges.items():
+                    indicator_merge_range[k]['min'] = min(indicator_merge_range[k]['min'], v[0])
+                    indicator_merge_range[k]['max'] = max(indicator_merge_range[k]['max'], v[1])
+
+            score = scores[cur_solution]
+            values.append({
+                'value': list(score['current'].values()),
+                'name': node_name
+            })
+
+        for k, v in indicator_translate_dict.items():
+            indicator.append({
+                'text': v,
+                'max': indicator_merge_range[k]['max'],
+                'min': indicator_merge_range[k]['min']
+            })
+
 
         jscode = "show_radar({}, {});".format(indicator, values)
         self.chart_webView.page().mainFrame().evaluateJavaScript(jscode)
@@ -381,43 +427,6 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
                 if cur.parent().data() is None:
                     self.tree_model.selectionModel().select(cur, QItemSelectionModel.Deselect)
 
-        # model = cur_item.data(0, modelRole.model)
-        #
-        # if previous_item is None:
-        #     model_id = -1
-        # else:
-        #     model_id = previous_item.data(0, modelRole.model).ID
-        #
-        # if model is not None:
-        #     self.current_model = model
-        # else:
-        #     return
-        #
-        # if model.ID == model_id:
-        #     return
-
-        # lyrs = []
-        # for k, v in model.layers.items():
-        #     lyr = QgsVectorLayer("{}|layername={}".format(model.dataSource, v), v, 'ogr')
-        #
-        #     if not lyr.isValid():
-        #         log.warning("图层文件{}读取失败".format("{}|layername={}".format(model.dataSource, v)))
-        #         continue
-        #
-        #     # 渲染grid和land图层
-        #     self.render_layers(k, lyr)
-        #
-        #     self.mapPreviewer.setExtent(lyr.extent())
-        #     lyrs.append(lyr)
-        #
-        # self.project.addMapLayers(lyrs)
-        # self.mapPreviewer.setLayers(lyrs)
-        # self.mapPreviewer.refresh()
-        #
-        # if self.chart_path == "":
-        #     self.chart_path = os.path.join(get_main_path(), "resources", "radar_hist.html")
-        # self.chart_webView.load(QUrl.fromLocalFile(os.path.abspath(self.chart_path)))
-
     def render_layers(self, k, lyr):
         sty = get_qgis_style()
         if sty is not None:
@@ -436,10 +445,12 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
 
     @Slot(bool)
     def chart_webView_loadFinished(self, bflag: bool):
+        if self.load_items is None:
+            return
+
         if bflag:
-            model = self.current_model
-            self.draw_radar(model)
-            self.draw_histogram(model)
+            self.draw_radar(self.load_items)
+            # self.draw_histogram(self.load_items)
 
     def clear(self):
         self.tree_model.clear()
@@ -506,8 +517,24 @@ if __name__ == '__main__':
                          'DemoBld': {'land': 'DemoBld_land', 'grid': 'DemoBld_grid'},
                          'Acc': {'land': 'Acc_land', 'grid': 'Acc_grid'},
                          'PublicService': {'land': 'PublicService_land', 'grid': 'PublicService_grid'}}
-    model_res1.ranges = {'NetIncRPo': [0, 34885748.643418014], 'DemoBld': [-54045505.95386531, 0], 'Acc': [0, 35090984.655], 'PublicService': [0, 16760.1601], 'BI': [0, 21.62210046]}
-    model_res1.score = {'multiple': {'current': {'NetIncRPo': 15364225.354680039, 'DemoBld': -15317557.4342225, 'Acc': 24312160.185000002, 'PublicService': 11867.470599999995, 'BI': 2.6562270999999997}, 'overall': 53.62}, 'NetIncRPo': {'current': {'NetIncRPo': 18535284.13230504, 'DemoBld': -12161314.008775942, 'Acc': 24401861.816999998, 'PublicService': 3908.6966999999995, 'BI': 2.7468455999999994}, 'overall': 47.24}, 'DemoBld': {'current': {'NetIncRPo': 16300817.014947858, 'DemoBld': -9662249.73705215, 'Acc': 22585008.737999998, 'PublicService': 3347.8207000000025, 'BI': 2.1058622}, 'overall': 44.58}, 'Acc': {'current': {'NetIncRPo': 16300817.014947856, 'DemoBld': -9662249.737052146, 'Acc': 22585008.737999998, 'PublicService': 3347.8207000000025, 'BI': 2.1058622}, 'overall': 44.58}, 'PublicService': {'current': {'NetIncRPo': 11126297.929674478, 'DemoBld': -17895987.479153745, 'Acc': 23763248.848, 'PublicService': 12822.730500000043, 'BI': 2.3017411}, 'overall': 50.73}}
+    model_res1.ranges = {'NetIncRPo': [0, 34885748.643418014], 'DemoBld': [-54045505.95386531, 0],
+                         'Acc': [0, 35090984.655], 'PublicService': [0, 16760.1601], 'BI': [0, 21.62210046]}
+    model_res1.score = {
+        'multiple': {
+            'current': {'NetIncRPo': 15364225.354680039, 'DemoBld': -15317557.4342225, 'Acc': 24312160.185000002,
+                    'PublicService': 11867.470599999995, 'BI': 2.6562270999999997}, 'overall': 53.62},
+        'NetIncRPo': {
+            'current': {'NetIncRPo': 18535284.13230504, 'DemoBld': -12161314.008775942, 'Acc': 24401861.816999998,
+                    'PublicService': 3908.6966999999995, 'BI': 2.7468455999999994}, 'overall': 47.24},
+        'DemoBld': {
+            'current': {'NetIncRPo': 16300817.014947858, 'DemoBld': -9662249.73705215, 'Acc': 22585008.737999998,
+                    'PublicService': 3347.8207000000025, 'BI': 2.1058622}, 'overall': 44.58},
+        'Acc': {
+            'current': {'NetIncRPo': 16300817.014947856, 'DemoBld': -9662249.737052146, 'Acc': 22585008.737999998,
+                    'PublicService': 3347.8207000000025, 'BI': 2.1058622}, 'overall': 44.58},
+        'PublicService': {
+            'current': {'NetIncRPo': 11126297.929674478, 'DemoBld': -17895987.479153745, 'Acc': 23763248.848,
+                    'PublicService': 12822.730500000043, 'BI': 2.3017411}, 'overall': 50.73}}
 
     model_res2 = ModelResult()
     model_res2.ID = str(uuid.uuid1())
@@ -522,7 +549,11 @@ if __name__ == '__main__':
                                        'grid': 'NetIncRPo_grid'},
                          'PublicService': {'land': 'PublicService_land',
                                            'grid': 'PublicService_grid'}}
-    model_res2.ranges = {'NetIncRPo': [0, 69771497.28683603], 'DemoBld': [-108091011.90773061, 0], 'Acc': [0, 70181969.31], 'PublicService': [0, 33520.3202], 'BI': [0, 41.58697848]}
+    model_res2.ranges = {'NetIncRPo': [0, 69771497.28683603],
+                         'DemoBld': [-108091011.90773061, 0],
+                         'Acc': [0, 70181969.31],
+                         'PublicService': [0, 33520.3202],
+                         'BI': [0, 41.58697848]}
     model_res2.score = {'multiple':
                             {'current':
                                  {'NetIncRPo': 50218241.39201991,
