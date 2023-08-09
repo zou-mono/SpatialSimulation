@@ -16,60 +16,53 @@
 </style>
 
 <body>
-<div id="top_container" style="position: relative; height: 50%">
-    <div id="top_title" style="text-align: center">
-        <label class="chart_title">模型指标评价</label>
+<div id="root" style="position: relative; height: 100%; width: 100%">
+    <div id="top_container" style="position: relative; height: 50%;">
+        <div id="top_title" style="position: relative; height: 5%; top: 1%; text-align: center">
+            <label class="chart_title">模型指标评价</label>
+        </div>
+        <div id="container_radar" style="position: relative; height: 95%"></div>
     </div>
-    <div id="container_radar" style="height: 90%"></div>
+
+    <div id="drag_line"
+         style="position: absolute;
+                height:6px;
+                width:100%;
+                background: #ccc;
+                /*border-top:4px solid #ccc;*/
+                /*float:left;*/
+                box-shadow: 0px 0px 8px #ccc;
+                margin-top:0px;
+                cursor: n-resize">
+    </div>
+
+    <div id="bottom_container" style="position: relative; height: 49%; margin-top: 6px">
+        <table style="width:100%; height:100%">
+            <tbody>
+            <tr style="height: 0">
+                <td id="bottom_title" class="chart_title" style="text-align: center; width:100%">
+                    <div>优化方案的指标分布</div>
+                </td>
+            </tr>
+            <tr style="height: 0">
+                <td>
+                    <div id="dropdown_indicator" style="visibility: hidden; margin-left: 5%; margin-top: 10px">
+                        <label class="dropdown_label" for="indicator">指标</label>
+                        <select id="indicator" class="minimal"></select>
+                    </div>
+                </td>
+            </tr>
+            <tr style="height:100%">
+                <td>
+                    <div id="container_hist" style="height:100%"></div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
 
-<div style="height:2px;width:100%;border-top:1px solid #ccc;float:left;margin-top:-5px;"></div>
-
-<div id="bottom_container" style="height: 50%">
-    <table style="width:100%; height:100%">
-        <tbody>
-        <tr style="height: 0">
-            <td id="bottom_title" class="chart_title" style="text-align: center; width:100%">
-                <div>优化方案的指标分布</div>
-            </td>
-        </tr>
-        <tr style="height: 0">
-            <td>
-                <div id="dropdown_indicator" style="visibility: hidden; margin-left: 5%; margin-top: 10px">
-                    <label class="dropdown_label" for="indicator">指标</label>
-                    <select id="indicator" class="minimal"></select>
-                </div>
-            </td>
-        </tr>
-        <tr style="height:100%">
-            <td>
-                <div id="container_hist" style="height:100%"></div>
-            </td>
-        </tr>
-        </tbody>
-    </table>
-</div>
-
-<!--    <div id="bottom_container" style="display: flex; flex-direction: column; height: 50%">-->
-<!--        <div id="bottom_title" style="text-align: center">-->
-<!--            <label class="chart_title">优化方案的指标分布</label>-->
-<!--        </div>-->
-
-<!--        <div style="display: flex; justify-content: space-between">-->
-<!--            <div id="dropdown_indicator" style="visibility: hidden; margin-left: 10%">-->
-<!--                <label class="dropdown_label" for="indicator">指标</label>-->
-<!--                <select id="indicator" class="minimal"></select>-->
-<!--            </div>-->
-<!--            &lt;!&ndash;        <div id="switch_chart_type" style="margin-right: 10%;">&ndash;&gt;-->
-<!--            &lt;!&ndash;            <label class="form-switch">&ndash;&gt;-->
-<!--            &lt;!&ndash;                <input type="checkbox">&ndash;&gt;-->
-<!--            &lt;!&ndash;                <i></i> label text </label>&ndash;&gt;-->
-<!--            &lt;!&ndash;        </div>&ndash;&gt;-->
-<!--        </div>-->
-
-<!--        <div id="container_hist" style="height: 100%"></div>-->
-<!--    </div>-->
-
+<script type="text/javascript" src="draggable_window.js"></script>
 <script type="text/javascript" src="echarts.min.js"></script>
 <script type="text/javascript" src="jquery-3.7.0.min.js"></script>
 <script type="text/javascript">
@@ -85,7 +78,7 @@
             '#0079FF', '#FF0060', '#00DFA2', '#F6FA70',
             '#8CC0DE', '#FAF0D7', '#FFD9C0', '#FAF0D7',
             '#453C67', '#6D67E4', '#46C2CB', '#F2F7A1',
-            '#F6E1C3', '#E9A178', '#A84448', '#7A3E65',
+            '#F6E1C3', '#E9A178', '#A84448', '#7A3E65'
         ],
         // title: {
         //     text: '评价指标',
@@ -121,7 +114,7 @@
                 text: 'Indicator5'
             }],
             // center: ['75%', '50%'],
-            radius: 120,
+            radius: '70%',
             shape: 'circle',
             axisName: {
                 color: '#fff',
@@ -170,8 +163,7 @@
                     if (Math.abs(value) > 1000) {
                         if (value === 0) {
                             return "0";
-                        }
-                        else {
+                        } else {
                             let res = value.toString();
                             let numN1 = 0;
                             let numN2 = 1;
@@ -203,7 +195,7 @@
                                 v = v * Math.pow(10, numN2);
                                 v = v.toFixed(1); //四舍五入 仅保留一位小数位数
                                 let char = indexList[Number(numN2)]
-                                if(v.toString() === '1'){
+                                if (v.toString() === '1') {
                                     return "10" + char;
                                 } else {
                                     return v.toString() + "\u00D7" + "10" + char;
@@ -223,8 +215,7 @@
                                 }
                             }
                         }
-                    }
-                    else {
+                    } else {
                         return value;
                     }
                 }
@@ -266,7 +257,7 @@
         if (top_option && typeof top_option === "object") {
             top_option["radar"][0]["indicator"] = indicator
             top_option["series"][0]["data"] = values
-            for(let i = 0; i < values.length; i++){
+            for (let i = 0; i < values.length; i++) {
                 top_option["series"][0]["symbol"] = 'none'
                 top_option["series"][0]["data"][i]["lineStyle"] = {
                     color: top_option.color[i]
@@ -277,7 +268,7 @@
                 }
             }
             // top_option["series"][0]["data"] = values
-            top_chart.setOption(top_option, true);
+            top_chart.setOption(top_option, false);
             top_chart.hideLoading();
             return null
         }
@@ -335,10 +326,10 @@
             value: [15364225.354680039, -15317557.4342225, 24312160.185000002, 11867.470599999995, 2.6562270999999997],
             name: '单目标:新增居住建筑量最优方案_model_2023-07-31-16-08-05',
         },
-        {
-            value: [18535284.13230504, -12161314.008775942, 24401861.816999998, 3908.6966999999995, 2.7468455999999994],
-            name: '单目标:交通可达性最优方案_model_2023-07-31-16-08-05'
-        }]
+            {
+                value: [18535284.13230504, -12161314.008775942, 24401861.816999998, 3908.6966999999995, 2.7468455999999994],
+                name: '单目标:交通可达性最优方案_model_2023-07-31-16-08-05'
+            }]
     )
 
     // get_hist_data(
