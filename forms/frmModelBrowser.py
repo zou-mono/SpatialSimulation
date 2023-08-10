@@ -104,6 +104,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.model.setFlag(QgsLayerTreeModel.AllowNodeReorder)
         self.model.setFlag(QgsLayerTreeModel.AllowNodeChangeVisibility)
         self.model.setFlag(QgsLayerTreeModel.UseTextFormatting)
+        self.model.setFlag(QgsLayerTreeModel.AllowLegendChangeState)
         self.tocView.setModel(self.model)
 
         self.bridge = QgsLayerTreeMapCanvasBridge(self.root, self.mapPreviewer, self)
@@ -232,7 +233,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
     #  初始化tocView，增加固定的group
     def init_tocView(self):
         for v in toc_groups.values():
-            self.root.addGroup(v)
+            self.root.addGroup(v[0])
 
         groups = self.root.findGroups()
         for group in groups:

@@ -11,7 +11,7 @@ from qgis._gui import QgsLayerTreeView, QgsMapCanvas, QgsLayerTreeMapCanvasBridg
 
 from UICore.Gv import modelRole, toc_groups, model_layer_meta as g_lm, model_config_params as g_cp, get_main_path
 from UICore.common import get_qgis_style, get_field_index_no_case
-from UICore.renderer import single_renderer, categrorized_renderer
+from UICore.renderer import single_renderer, categrorized_renderer, landio_renderer
 
 Slot = pyqtSlot
 
@@ -89,19 +89,21 @@ class Model_Tree(QTreeWidget):
 
         layers = []
         for key, group_name in toc_groups.items():
-            if key == g_lm.name_io:
+            if key.lower() == g_lm.name_io.lower():
                 lyr = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_land_name), node_name, 'ogr')
             else:
                 lyr = QgsVectorLayer("{}|layername={}".format(cur_ds, lyr_grid_name), node_name, 'ogr')
 
             if lyr.isValid():
-                cur_group = self.root.findGroup(group_name)
+                cur_group = self.root.findGroup(group_name[0])
                 self.project.addMapLayer(lyr, False)
                 cur_group.insertLayer(0, lyr)
                 layers.append(lyr)
                 cur_group.setItemVisibilityChecked(True)
                 self.mapCanvas.setExtent(lyr.extent())
-                self.render_layers(cur_solution, lyr)
+
+                self.render_layers(group_name[1].lower(), lyr)
+
 
         if len(layers) > 0:
             self.mapCanvas.setLayers(layers)
@@ -148,16 +150,17 @@ class Model_Tree(QTreeWidget):
     def render_layers(self, layer_type, lyr: QgsVectorLayer, r_field_name=""):
         sty = get_qgis_style()
         if sty is not None:
-            if layer_type == 'multiple':
-                spec_dict = {}
-                fni, field_name = get_field_index_no_case(lyr, g_lm.name_io)
-
-                symbol = QgsSymbol.defaultSymbol(lyr.geometryType())
-                symbol = single_renderer(lyr, symbol.type(), color="#16dd37", outline_color="#16dd37", bReprint=False)
-                spec_dict[1] = symbol
-                symbol = single_renderer(lyr, symbol.type(), color="#383838", outline_color="#383838", bReprint=False)
-                spec_dict[0] = symbol
-                categrorized_renderer(lyr, fni, field_name, None, spec_dict)
+            if layer_type == g_lm.name_io.lower():
+                landio_renderer(lyr)
+                # spec_dict = {}
+                # fni, field_name = get_field_index_no_case(lyr, g_lm.name_io)
+                #
+                # symbol = QgsSymbol.defaultSymbol(lyr.geometryType())
+                # symbol = single_renderer(lyr, symbol.type(), color="#16dd37", outline_color="#16dd37", bReprint=False)
+                # spec_dict[1] = symbol
+                # symbol = single_renderer(lyr, symbol.type(), color="#383838", outline_color="#383838", bReprint=False)
+                # spec_dict[0] = symbol
+                # categrorized_renderer(lyr, fni, field_name, None, spec_dict)
             else:
                 single_renderer(lyr, color="#fdfffd", outline_color='#232323', opacity=1)
 

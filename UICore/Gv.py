@@ -103,14 +103,14 @@ prop_neccessary = {
     9: '总旧工业区改居住用地'
 }
 
-# frmModelBrowser的tocView固定显示的内容
+# frmModelBrowser的tocView固定显示的内容, value的第二个元素表示对应模型结果数据库中的显示的字段
 toc_groups = {
-    model_layer_meta.name_io: '优化方案用地空间布局图',
-    model_config_params.Indicator_net: '新增居住建筑量空间布局图',
-    model_config_params.Indicator_demo: '拆除建筑量空间布局图',
-    model_config_params.Indicator_acc: '交通可达性空间布局图',
-    model_config_params.Indicator_pubService: '公共服务水平空间布局图',
-    model_config_params.Indicator_bi: '职住平衡空间布局图'
+    model_layer_meta.name_io: ['优化方案用地空间布局图', model_layer_meta.name_io],
+    model_config_params.Indicator_net: ['新增居住建筑量空间布局图', model_config_params.Indicator_net],
+    model_config_params.Indicator_demo: ['拆除建筑量空间布局图', model_config_params.Indicator_demo],
+    model_config_params.Indicator_acc: ['交通可达性空间布局图', model_config_params.Indicator_acc],
+    model_config_params.Indicator_pubService: ['公共服务水平空间布局图', model_config_params.Indicator_pubService],
+    model_config_params.Indicator_bi: ['职住平衡空间布局图', model_layer_meta.name_plabi]
 }
 
 land_type_dict = {

@@ -378,7 +378,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
                     if fni == -1:
                         log.warning("分级渲染图层{}不存在，无法完成渲染!".format(g_lm.name_type))
                     else:
-                        categrorized_renderer(layer, fni, field_name, color_ramp)
+                        categrorized_renderer(layer, fni, land_type_dict, field_name, color_ramp)
                 else:
                     log.warning("Spectral颜色板丢失，无法完成图层渲染！")
 
