@@ -99,11 +99,12 @@ class Model_Tree(QTreeWidget):
                 self.project.addMapLayer(lyr, False)
                 cur_group.insertLayer(0, lyr)
                 layers.append(lyr)
-                cur_group.setItemVisibilityChecked(True)
                 self.mapCanvas.setExtent(lyr.extent())
-
                 self.render_layers(group_name[1].lower(), lyr)
 
+                #  初始先点开优化方案用地空间布局图
+                if key.lower() == g_lm.name_io.lower():
+                    cur_group.setItemVisibilityChecked(True)
 
         if len(layers) > 0:
             self.mapCanvas.setLayers(layers)
