@@ -277,54 +277,62 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
     def draw_histogram(self, items):
         transfer_dict = {}
 
-        cur_item = items[0]
+        for cur_item in items:
+            model = cur_item.data(0, modelRole.model)
+            cur_solution = cur_item.data(0, modelRole.solution)['key']
+            cur_solution_name = cur_item.data(0, modelRole.solution)['name']
 
-        model = cur_item.data(0, modelRole.model)
-        cur_solution = cur_item.data(0, modelRole.solution)['key']
-        cur_solution_name = cur_item.data(0, modelRole.solution)['name']
+            indicator_dict = {}
 
-        sqlite_db = Sqlite(model.dataSource)
-        exec_str = '''
-            select * from {} where {}=1
-        '''.format(model.layers['land'], model_layer_meta.name_io)
-        df_land = pd.DataFrame.from_dict(sqlite_db.execute_dict(exec_str))
+            sqlite_db = Sqlite(model.dataSource)
+            exec_str = '''
+                select * from {} where {}=1
+            '''.format(model.layers[cur_solution]['land'], model_layer_meta.name_io)
+            df_land = pd.DataFrame.from_dict(sqlite_db.execute_dict(exec_str))
 
-        exec_str = '''
-            select {} from {}
-        '''.format(model_layer_meta.name_plabi, model.layers['grid'])
-        df_grid = pd.DataFrame.from_dict(sqlite_db.execute_dict(exec_str))
+            exec_str = '''
+                select {} from {}
+            '''.format(model_layer_meta.name_plabi, model.layers[cur_solution]['grid'])
+            df_grid = pd.DataFrame.from_dict(sqlite_db.execute_dict(exec_str))
 
-        if len(df_land) ==0 or len(df_grid) == 0:
-            log.warning("优化结果图层读取为空，无法进行直方图展示.")
-            return
+            if len(df_land) ==0 or len(df_grid) == 0:
+                log.warning("优化结果图层读取为空，无法进行直方图展示.")
+                return
 
-        # net increase
-        df_filter = (df_land[self.name_r_po] - df_land[self.name_CurRBld]).map(
-            lambda x: 0 if x < 0 else x
-        )
-        df_filter = df_filter[df_filter > 0]
-        transfer_dict = self.transfer_to_dict(transfer_dict, df_filter, model_config_params.Indicator_net)
+            # net increase
+            df_filter = (df_land[self.name_r_po] - df_land[self.name_CurRBld]).map(
+                lambda x: 0 if x < 0 else x
+            )
+            df_filter = df_filter[df_filter > 0]
+            indicator_dict = self.transfer_to_dict(indicator_dict, df_filter, model_config_params.Indicator_net)
 
-        # demolish
-        df_filter = df_land[self.name_CurRBld]
-        df_filter = df_filter[df_filter > 0]
-        transfer_dict = self.transfer_to_dict(transfer_dict, df_filter, model_config_params.Indicator_demo)
+            # demolish
+            df_filter = df_land[self.name_CurRBld]
+            df_filter = df_filter[df_filter > 0]
+            indicator_dict = self.transfer_to_dict(indicator_dict, df_filter, model_config_params.Indicator_demo)
 
-        # acc
-        df_filter = df_land.query('{}==1'.format(self.name_MetroIf))[
-            "{}".format(self.name_r_po)]
-        df_filter = df_filter[df_filter > 0]
-        transfer_dict = self.transfer_to_dict(transfer_dict, df_filter, model_config_params.Indicator_acc)
+            # acc
+            df_filter = df_land.query('{}==1'.format(self.name_MetroIf))[
+                "{}".format(self.name_r_po)]
+            df_filter = df_filter[df_filter > 0]
+            indicator_dict = self.transfer_to_dict(indicator_dict, df_filter, model_config_params.Indicator_acc)
 
-        #  pubervice
-        df_filter = df_land[self.name_PublicService]
-        df_filter = df_filter[df_filter > 0]
-        transfer_dict = self.transfer_to_dict(transfer_dict, df_filter, model_config_params.Indicator_pubService)
+            #  pubervice
+            df_filter = df_land[self.name_PublicService]
+            df_filter = df_filter[df_filter > 0]
+            indicator_dict = self.transfer_to_dict(indicator_dict, df_filter, model_config_params.Indicator_pubService)
 
-        #  BI
-        df_filter = df_grid[self.name_plabi]
-        df_filter = df_filter[df_filter > 0]
-        transfer_dict = self.transfer_to_dict(transfer_dict, df_filter, model_config_params.Indicator_bi)
+            #  BI
+            df_filter = df_grid[self.name_plabi]
+            df_filter = df_filter[df_filter > 0]
+            indicator_dict = self.transfer_to_dict(indicator_dict, df_filter, model_config_params.Indicator_bi)
+
+            if model.name not in transfer_dict:
+                transfer_dict[model.name] = {}
+            transfer_dict[model.name][cur_solution] = {
+                'sol_name': cur_solution_name,
+                'indicator': indicator_dict
+            }
 
         transfer_data = json.dumps(transfer_dict, ensure_ascii=False)
         jscode = "get_hist_data('{}');".format(transfer_data)
@@ -361,8 +369,6 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         transfer_hist = [[x[i], hist[i]] for i in range(len(x) - 1)]
         transfer_density = [[interval[i], density[i]] for i in range(len(interval) - 1)]
 
-        print(transfer_hist)
-
         return transfer_hist, transfer_density, [start, stop, count]
 
     #  绘制雷达图
@@ -396,7 +402,8 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
             score = scores[cur_solution]
             values.append({
                 'value': list(score['current'].values()),
-                'name': node_name
+                'name': node_name,
+                'overall': score['overall']
             })
 
         for k, v in indicator_translate_dict.items():
@@ -450,7 +457,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
 
         if bflag:
             self.draw_radar(self.load_items)
-            # self.draw_histogram(self.load_items)
+            self.draw_histogram(self.load_items)
 
     def clear(self):
         self.tree_model.clear()
