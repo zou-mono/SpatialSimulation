@@ -434,22 +434,6 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
                 if cur.parent().data() is None:
                     self.tree_model.selectionModel().select(cur, QItemSelectionModel.Deselect)
 
-    def render_layers(self, k, lyr):
-        sty = get_qgis_style()
-        if sty is not None:
-            if k == 'land':
-                spec_dict = {}
-                fni, field_name = get_field_index_no_case(lyr, model_layer_meta.name_io)
-
-                symbol = QgsSymbol.defaultSymbol(lyr.geometryType())
-                symbol = single_renderer(lyr, symbol.type(), color="#16dd37", outline_color="#16dd37", bReprint=False)
-                spec_dict[1] = symbol
-                symbol = single_renderer(lyr, symbol.type(), color="#383838", outline_color="#383838", bReprint=False)
-                spec_dict[0] = symbol
-                categrorized_renderer(lyr, fni, field_name, None, spec_dict)
-            elif k == 'grid':
-                single_renderer(lyr, color="#fdfffd", outline_color='#232323', opacity=1)
-
     @Slot(bool)
     def chart_webView_loadFinished(self, bflag: bool):
         if self.load_items is None:

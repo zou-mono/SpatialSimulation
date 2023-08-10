@@ -6,10 +6,12 @@ from PyQt5.QtGui import QCursor, QPixmap, QIcon, QKeyEvent, QFont
 from PyQt5.QtWidgets import QTreeWidget, QAbstractItemView, QStyleFactory, QTreeWidgetItem, QMenu, QAction
 from PyQt5.uic.properties import QtGui
 from qgis.PyQt import QtCore
-from qgis._core import QgsVectorLayer, QgsProject, QgsLayerTreeLayer, QgsLayerTreeNode
+from qgis._core import QgsVectorLayer, QgsProject, QgsLayerTreeLayer, QgsLayerTreeNode, QgsSymbol, QgsField
 from qgis._gui import QgsLayerTreeView, QgsMapCanvas, QgsLayerTreeMapCanvasBridge
 
 from UICore.Gv import modelRole, toc_groups, model_layer_meta as g_lm, model_config_params as g_cp, get_main_path
+from UICore.common import get_qgis_style, get_field_index_no_case
+from UICore.renderer import single_renderer, categrorized_renderer
 
 Slot = pyqtSlot
 
@@ -99,6 +101,7 @@ class Model_Tree(QTreeWidget):
                 layers.append(lyr)
                 cur_group.setItemVisibilityChecked(True)
                 self.mapCanvas.setExtent(lyr.extent())
+                self.render_layers(cur_solution, lyr)
 
         if len(layers) > 0:
             self.mapCanvas.setLayers(layers)
@@ -142,6 +145,23 @@ class Model_Tree(QTreeWidget):
             context_menu.addAction(QActionModelInfo(self))
             context_menu.exec(QCursor.pos())
 
+    def render_layers(self, layer_type, lyr: QgsVectorLayer, r_field_name=""):
+        sty = get_qgis_style()
+        if sty is not None:
+            if layer_type == 'multiple':
+                spec_dict = {}
+                fni, field_name = get_field_index_no_case(lyr, g_lm.name_io)
+
+                symbol = QgsSymbol.defaultSymbol(lyr.geometryType())
+                symbol = single_renderer(lyr, symbol.type(), color="#16dd37", outline_color="#16dd37", bReprint=False)
+                spec_dict[1] = symbol
+                symbol = single_renderer(lyr, symbol.type(), color="#383838", outline_color="#383838", bReprint=False)
+                spec_dict[0] = symbol
+                categrorized_renderer(lyr, fni, field_name, None, spec_dict)
+            else:
+                single_renderer(lyr, color="#fdfffd", outline_color='#232323', opacity=1)
+
+
 #  模型对比
 class QActionModelCompare(QAction):
     def __init__(self, parent: Model_Tree):
@@ -170,3 +190,4 @@ class QActionModelInfo(QAction):
         self.setToolTip("模型信息")
         self.setIcon(QIcon(QPixmap(":/icons/icons/information.svg")))
         self.setEnabled(True)
+

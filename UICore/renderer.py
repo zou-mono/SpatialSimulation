@@ -2,6 +2,7 @@ from qgis._core import QgsSymbol, QgsRendererCategory, QgsCategorizedSymbolRende
     QgsSimpleFillSymbolLayer, QgsFillSymbolLayer, Qgis
 
 from UICore.Gv import land_type_dict
+from UICore.common import get_qgis_style, get_field_index_no_case
 
 
 def categrorized_renderer(layer, index, render_field, color_ramp=None, spec_dict=None):
@@ -56,3 +57,4 @@ def single_renderer(layer, type=Qgis.SymbolType.Fill, color='cyan', outline_colo
             layer.triggerRepaint()
 
     return symbol
+
