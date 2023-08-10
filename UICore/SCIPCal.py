@@ -668,7 +668,8 @@ class Model:
         # res.to_sql(obj_key + '_land', con=self.m_db.connection, if_exists='replace', index=False)
         res.to_sql(obj_key + '_land', con=self.m_db.connection, if_exists='replace', index=False,
                    dtype={
-                       'ogc_fid': 'INTEGER PRIMARY KEY'
+                       'ogc_fid': 'INTEGER PRIMARY KEY',
+                       self.name_io: 'INTEGER'
                    })  # 这里必须指定一个primary key，否则会把rowid当做FID
 
     # 将join后的表创建一张临时表
