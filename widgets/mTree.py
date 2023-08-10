@@ -6,12 +6,13 @@ from PyQt5.QtGui import QCursor, QPixmap, QIcon, QKeyEvent, QFont
 from PyQt5.QtWidgets import QTreeWidget, QAbstractItemView, QStyleFactory, QTreeWidgetItem, QMenu, QAction
 from PyQt5.uic.properties import QtGui
 from qgis.PyQt import QtCore
-from qgis._core import QgsVectorLayer, QgsProject, QgsLayerTreeLayer, QgsLayerTreeNode, QgsSymbol, QgsField
+from qgis._core import QgsVectorLayer, QgsProject, QgsLayerTreeLayer, QgsLayerTreeNode, QgsSymbol, QgsField, \
+    QgsGraduatedSymbolRenderer
 from qgis._gui import QgsLayerTreeView, QgsMapCanvas, QgsLayerTreeMapCanvasBridge
 
 from UICore.Gv import modelRole, toc_groups, model_layer_meta as g_lm, model_config_params as g_cp, get_main_path
 from UICore.common import get_qgis_style, get_field_index_no_case
-from UICore.renderer import single_renderer, categrorized_renderer, landio_renderer
+from UICore.renderer import single_renderer, categrorized_renderer, landio_renderer, graduated_render
 
 Slot = pyqtSlot
 
@@ -100,7 +101,7 @@ class Model_Tree(QTreeWidget):
                 cur_group.insertLayer(0, lyr)
                 layers.append(lyr)
                 self.mapCanvas.setExtent(lyr.extent())
-                self.render_layers(group_name[1].lower(), lyr)
+                self.render_layers(group_name[1].lower(), lyr, group_name[1])
 
                 #  初始先点开优化方案用地空间布局图
                 if key.lower() == g_lm.name_io.lower():
@@ -163,7 +164,9 @@ class Model_Tree(QTreeWidget):
                 # spec_dict[0] = symbol
                 # categrorized_renderer(lyr, fni, field_name, None, spec_dict)
             else:
-                single_renderer(lyr, color="#fdfffd", outline_color='#232323', opacity=1)
+                color_ramp = sty.colorRamp("Reds")
+                graduated_render(lyr, r_field_name, 6, color_ramp, QgsGraduatedSymbolRenderer.Mode.Jenks)
+                # single_renderer(lyr, color="#fdfffd", outline_color='#232323', opacity=1)
 
 
 #  模型对比

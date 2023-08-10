@@ -1,6 +1,7 @@
 from PyQt5.QtGui import QColor
 from qgis._core import QgsSymbol, QgsRendererCategory, QgsCategorizedSymbolRenderer, QgsSingleSymbolRenderer, \
-    QgsSimpleFillSymbolLayer, QgsFillSymbolLayer, Qgis, QgsRuleBasedRenderer, QgsWkbTypes
+    QgsSimpleFillSymbolLayer, QgsFillSymbolLayer, Qgis, QgsRuleBasedRenderer, QgsWkbTypes, QgsMarkerSymbol, \
+    QgsLineSymbol, QgsFillSymbol, QgsGraduatedSymbolRenderer
 
 from UICore.Gv import land_type_dict, model_layer_meta as g_lm
 from UICore.common import get_qgis_style, get_field_index_no_case
@@ -59,6 +60,24 @@ def landio_renderer(layer):
     ruled_renderer(layer, rules)
 
 
+def graduated_render(layer, field, classes, color_ramp, mode):
+    symbol = validatedDefaultSymbol(layer.geometryType())
+    renderer = QgsGraduatedSymbolRenderer.createRenderer(layer, field, classes, mode, symbol, color_ramp)
+
+    renderer = QgsRuleBasedRenderer.convertFromRenderer(renderer)
+    root_rule = renderer.rootRule()
+    rule = root_rule.children()[0].clone()
+    rule.setLabel("空值")
+    rule.setFilterExpression("{} is NULL".format(field))
+    rule.symbol().setColor(QColor(color_unselected_land))
+    rule.symbol().setOpacity(0.2)
+    root_rule.appendChild(rule)
+
+    if renderer is not None:
+        layer.setRenderer(renderer)
+        layer.triggerRepaint()
+
+
 def ruled_renderer(layer, rules):
     geo_type = layer.geometryType()
     symbol = QgsSymbol.defaultSymbol(geo_type)
@@ -101,9 +120,10 @@ def ruled_renderer(layer, rules):
     root_rule.removeChildAt(0)
 
     # apply the renderer to the layer
-    layer.setRenderer(renderer)
-    # refresh the layer on the map canvas
-    layer.triggerRepaint()
+    if renderer is not None:
+        layer.setRenderer(renderer)
+        # refresh the layer on the map canvas
+        layer.triggerRepaint()
 
 
 def categrorized_renderer(layer, index, data, render_field, color_ramp=None, spec_dict=None):
@@ -159,3 +179,14 @@ def single_renderer(layer, type=Qgis.SymbolType.Fill, color='cyan', outline_colo
 
     return symbol
 
+
+def validatedDefaultSymbol(geometryType):
+    symbol = QgsSymbol.defaultSymbol(geometryType)
+    if symbol is None:
+        if geometryType == QgsWkbTypes.GeometryType.PointGeometry:
+            symbol = QgsMarkerSymbol()
+        elif geometryType == QgsWkbTypes.GeometryType.LineGeometry:
+            symbol = QgsLineSymbol()
+        elif geometryType == QgsWkbTypes.GeometryType.PolygonGeometry:
+            symbol = QgsFillSymbol()
+    return symbol
