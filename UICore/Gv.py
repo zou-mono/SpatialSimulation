@@ -16,29 +16,48 @@ class modelRole:
 
 #  模型运算中涉及图层和字段设置
 class model_layer_meta():
+    name_layer_match = "居住潜力用地_标准单元匹配"
+    name_layer_Grid = "标准单元"
+    name_layer_PotentialLand = "居住专规潜力用地"
+
     name_zzphxs = "BI"  # 职住平衡系数字段名称
     name_FixedAddRS = "FixedAddRS"  # 固定增加的居住建筑
     name_potentialLand_area = "area"  # 潜力用地面积字段
-    name_layer_match = "居住潜力用地_标准单元匹配"
     name_CurRBld = "CurRBld"  # 居住地块现状居住建筑面积
     name_FixaddPOP = "FixaddPOP"  # 固定增加的居住人口
     name_weight = "Weight"  # 职住平衡分析权重
     name_unitid = "UnitID"  # 标准单元编号
     name_landid = "LandID" # 居住专规用地编号
-    name_layer_Grid = "标准单元"
-    name_layer_PotentialLand = "居住专规潜力用地"
-    name_type = "type"
-    name_r_po = "r_po"
+    name_type = "Type"
+    name_r_po = "R_Po"
     name_io = "IO"
-    name_plabi = "PBI"
+    name_plabi = "PlaBI"
+    name_plajob = "PlaJOB"
     name_CurBldAdj = "CurBldAdj"
+    name_CurPop = "CurPOP"
+    name_CurJOB = "CurJOB"
+    name_UnitType = "UnitType"
     name_MetroIF = "Metro_IF"
-    name_PublicService = "pubservice"
+    name_PublicService = "PubService"
     name_result_io = "land_io"
     name_result_plabi = "UnitID_PlaBI"
     name_bSingleCal = 'bSingleCal'  # 单目标是否计算字段
     name_indicator = 'Indicator' #  指标字段的名称
 
+class model_neccessary_field():
+    class grid():
+        name_plajob = "未来就业岗位"
+        name_CurPop = "单元现状人口总数"
+        name_CurJOB = "单元现状就业岗位总数"
+        name_UnitType = "单元类型"
+
+    class land():
+        name_type = "居住地块用地类型"
+        name_CurBldAdj = "居住地块现状建筑面积"
+        name_CurRBld = "居住地块现状居住建筑面积"
+        name_r_po = "新建居住建筑潜力面积"
+        name_MetroIF = "是否在地铁站范围内"
+        name_PublicService = "可享用的公服面积"
 
 #  模型配置文件设置
 class model_config_params():
@@ -55,7 +74,7 @@ class model_config_params():
     Indicator_pubService = "PublicService"  # 公共服务名称
     Indicator_bi = "BI"  # 职住平衡名称
     Indicator_multi = "multiple"
-
+    srs_id = '4547'
 
 indicator_translate_dict = {
     model_config_params.Indicator_net: "新增居住建筑量",
@@ -69,11 +88,11 @@ indicator_translate_dict = {
 # key是顺序，同时也是区分结果图层中io,plabi字段的序号
 # 第三列表示是否可以参与单目标优化运算
 Weight_neccessary = {
-    model_config_params.Indicator_net: ['新增总居住建筑量', 0, True],
-    model_config_params.Indicator_demo: ['拆除总建筑量', 1, True],
-    model_config_params.Indicator_acc: ['交通可达性', 2, True],
-    model_config_params.Indicator_pubService: ['公共服务水平', 3, True],
-    model_config_params.Indicator_bi: ['职住平衡指数', 4, False]
+    model_config_params.Indicator_net: ['新增总居住建筑量', 1, True],
+    model_config_params.Indicator_demo: ['拆除总建筑量', 2, True],
+    model_config_params.Indicator_acc: ['交通可达性', 3, True],
+    model_config_params.Indicator_pubService: ['公共服务水平', 4, True],
+    model_config_params.Indicator_bi: ['职住平衡指数', 5, False]
 }
 
 # 控制模型的prop， key是用地type值
@@ -82,6 +101,16 @@ prop_neccessary = {
     7: '总土地整备计划用地',
     8: '总旧住宅区改居住用地',
     9: '总旧工业区改居住用地'
+}
+
+# frmModelBrowser的tocView固定显示的内容, value的第二个元素表示对应模型结果数据库中的显示的字段
+toc_groups = {
+    model_layer_meta.name_io: ['优化方案用地空间布局图', model_layer_meta.name_io],
+    model_config_params.Indicator_net: ['新增居住建筑量空间布局图', model_config_params.Indicator_net],
+    model_config_params.Indicator_demo: ['拆除建筑量空间布局图', model_config_params.Indicator_demo],
+    model_config_params.Indicator_acc: ['交通可达性空间布局图', model_config_params.Indicator_acc],
+    model_config_params.Indicator_pubService: ['公共服务水平空间布局图', model_config_params.Indicator_pubService],
+    model_config_params.Indicator_bi: ['职住平衡空间布局图', model_layer_meta.name_plabi]
 }
 
 land_type_dict = {
@@ -104,7 +133,6 @@ land_type_dict = {
     17: "消防站",
     18: "生态线内"
 }
-
 
 class Dock(Enum):
     left = 0

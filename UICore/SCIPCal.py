@@ -1,3 +1,4 @@
+import sqlite3
 from multiprocessing import cpu_count
 import os, time
 import math
@@ -8,18 +9,21 @@ import pandas as pd
 import numpy as np
 from PyQt5.QtCore import pyqtProperty
 from qgis._core import QgsVectorFileWriter, QgsProject, QgsVectorLayer
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, NUMERIC
 
-from UICore.Gv import model_config_params, model_layer_meta
+from UICore.DataFactory import workspaceFactory
+from UICore.Gv import model_config_params as g_cp, model_layer_meta as g_lm, Weight_neccessary, DataType
 from sqlalchemy.types import Integer
 
+from UICore.common import get_srs_id
 from UICore.mSqlite import Sqlite
 from pyscipopt import Model as scipModel, quicksum
 
 from UICore.log4p import Log
 
-params_file=os.path.join(model_config_params.config_path, model_config_params.param_file)
+params_file=os.path.join(g_cp.config_path, g_cp.param_file)
 type_filter = '''type=6 or type=7 or type=8 or type=9'''
+fix_type_filter = '''type<>6 and type <>7 and type<>8 and type<>9'''
 
 log = Log(__name__)
 
@@ -34,20 +38,21 @@ class Model:
     m_df_grid = None
 
     def get_field_names(self):
-        self.name_area = model_layer_meta.name_potentialLand_area.lower()
-        self.name_type = model_layer_meta.name_type.lower()
-        self.name_landid = model_layer_meta.name_landid.lower()
-        self.name_unitid = model_layer_meta.name_unitid.lower()
-        self.name_r_po = model_layer_meta.name_r_po.lower()
-        self.name_CurBldAdj = model_layer_meta.name_CurBldAdj.lower()
-        self.name_CurRBld = model_layer_meta.name_CurRBld.lower()
-        self.name_MetroIf = model_layer_meta.name_MetroIF.lower()
-        self.name_PublicService = model_layer_meta.name_PublicService.lower()
-        self.name_layer_PotentialLand = model_layer_meta.name_layer_PotentialLand
-        self.name_layer_match = model_layer_meta.name_layer_match
-        self.name_potentialLand_area = model_layer_meta.name_potentialLand_area
-        self.name_plabi = model_layer_meta.name_plabi.lower()
-        self.name_io = model_layer_meta.name_io.lower()
+        self.name_area = g_lm.name_potentialLand_area.lower()
+        self.name_type = g_lm.name_type.lower()
+        self.name_landid = g_lm.name_landid.lower()
+        self.name_unitid = g_lm.name_unitid.lower()
+        self.name_r_po = g_lm.name_r_po.lower()
+        self.name_CurBldAdj = g_lm.name_CurBldAdj.lower()
+        self.name_CurRBld = g_lm.name_CurRBld.lower()
+        self.name_MetroIf = g_lm.name_MetroIF.lower()
+        self.name_PublicService = g_lm.name_PublicService.lower()
+        self.name_layer_PotentialLand = g_lm.name_layer_PotentialLand
+        self.name_layer_match = g_lm.name_layer_match
+        self.name_layer_grid = g_lm.name_layer_Grid
+        self.name_potentialLand_area = g_lm.name_potentialLand_area
+        self.name_plabi = g_lm.name_plabi.lower()
+        self.name_io = g_lm.name_io.lower()
 
     def __init__(self, model_name, db_name, df_indicator_Weight, df_constraint, logClass=None):
         self.db_name = db_name
@@ -57,7 +62,7 @@ class Model:
 
         self.df_constraint = df_constraint
         self.df_weight = df_indicator_Weight
-        # self.df_four_land_cons = read_excel(params_file, sheet_name=model_config_params.Potential_Constraint,header=0,index_col=0)  # 第一列设为索引
+        # self.df_four_land_cons = read_excel(params_file, sheet_name=g_cp.Potential_Constraint,header=0,index_col=0)  # 第一列设为索引
         self.m_df_land = self.read_file(self.name_layer_PotentialLand)
         self.m_df_match = self.read_file(self.name_layer_match)
         self.model = None
@@ -65,9 +70,15 @@ class Model:
 
         self.obj_dict = {} # 用于存储单目标优化的目标函数, 结构： {变量名称{:变量, :sense}}
 
+        wks = workspaceFactory().get_factory(DataType.sqlite)
+        self.dataSource = wks.openFromFile(self.db_name, 1)
+
         global log
         if logClass is not None:
             log = logClass
+
+    def release(self):
+        del self.dataSource
 
     #  针对每个目标求解的综合评分
     def overall(self):
@@ -79,8 +90,8 @@ class Model:
                             (self.model_res.ranges[k][1] - self.model_res.ranges[k][0])
                 self.df_weight.loc[k, 'score'] = cur_score
 
-            sol_score = (self.df_weight.loc[:, 'score'] * self.df_weight.loc[:, model_layer_meta.name_weight]).sum() / \
-                        self.df_weight.loc[:, model_layer_meta.name_weight].sum()
+            sol_score = (self.df_weight.loc[:, 'score'] * self.df_weight.loc[:, g_lm.name_weight]).sum() / \
+                        self.df_weight.loc[:, g_lm.name_weight].sum()
 
             self.model_res.score[sol_key]['overall'] = round(sol_score * 100, 2)
 
@@ -93,8 +104,7 @@ class Model:
         else:
             return None, None
 
-
-    def read_file(self, tbl_name):
+    def read_file(self, tbl_name, filter=type_filter):
         r = self.m_db.execute_dict(
             '''select * from {}
                 where {}'''.format(tbl_name, type_filter))
@@ -129,7 +139,6 @@ class Model:
         try:
             self.create_index()
 
-            x = {}
             # LandID,居住专规用地编号
             self.LandIDs = self.m_df_land[self.name_landid].tolist()
             self.m_df_land.set_index(self.name_landid, inplace=True)
@@ -155,7 +164,7 @@ class Model:
 
             self.UnitIDs = self.m_df_grid.index.tolist()
 
-            x = {i: model.addVar(vtype='B',name="x(%d)"%(i)) for i in self.LandIDs}
+            x = {i: model.addVar(vtype='B', name="x(%d)"%(i)) for i in self.LandIDs}
 
             self.x_Unit_FlexPOP={}
             self.x_Unit_PlaBI={}
@@ -198,8 +207,8 @@ class Model:
             model.addCons(x_K9==quicksum(x[i] * self.m_df_land.loc[i, self.name_area] for i in LandID_K) / area)
 
             #目标变量-拆迁量，负向指标，越小越好,
-            self.x_I_DemoBld=model.addVar(vtype='C',name=model_config_params.Indicator_demo)
-            self.obj_dict[model_config_params.Indicator_demo] = {
+            self.x_I_DemoBld=model.addVar(vtype='C',name=g_cp.Indicator_demo)
+            self.obj_dict[g_cp.Indicator_demo] = {
                 'obj': self.x_I_DemoBld,
                 'sense': sense_min
             }
@@ -213,8 +222,8 @@ class Model:
             model.addCons(self.x_I_PlanBld==quicksum(x[i]*self.m_df_land.loc[i, self.name_r_po] for i in self.LandIDs))
 
             #目标变量-轨道交通可达性评价变量，正向指标，越大越好，参与目标函数
-            self.x_I_Acc=model.addVar(vtype="C",name=model_config_params.Indicator_acc)
-            self.obj_dict[model_config_params.Indicator_acc] = {
+            self.x_I_Acc=model.addVar(vtype="C",name=g_cp.Indicator_acc)
+            self.obj_dict[g_cp.Indicator_acc] = {
                 'obj': self.x_I_Acc,
                 'sense': sense_max
             }
@@ -224,16 +233,16 @@ class Model:
             # model.addCons(self.x_I_Acc==quicksum(x[i]*self.m_df_land.loc[i, "log_r_po"] for i in self.LandIDs))
 
             #目标变量-公共服务覆盖，正向指标，越大越好，参与目标函数
-            self.x_I_PublicServe=model.addVar(vtype="C",name=model_config_params.Indicator_pubService)
-            self.obj_dict[model_config_params.Indicator_pubService] = {
+            self.x_I_PublicServe=model.addVar(vtype="C",name=g_cp.Indicator_pubService)
+            self.obj_dict[g_cp.Indicator_pubService] = {
                 'obj': self.x_I_PublicServe,
                 'sense': sense_max
             }
             model.addCons(self.x_I_PublicServe==quicksum(x[i]*self.m_df_land.loc[i, self.name_PublicService] for i in self.LandIDs))
 
             #目标变量-纯新增建筑变量
-            self.x_I_NetIncRPo=model.addVar(vtype="C",name=model_config_params.Indicator_net)
-            self.obj_dict[model_config_params.Indicator_net] = {
+            self.x_I_NetIncRPo=model.addVar(vtype="C",name=g_cp.Indicator_net)
+            self.obj_dict[g_cp.Indicator_net] = {
                 'obj': self.x_I_NetIncRPo,
                 'sense': sense_max
             }
@@ -253,8 +262,8 @@ class Model:
     def save_preset_params(self):
         #记录5个之指标的最大值和最小值,范围
         #格式-name,max,min，range
-        config_path = model_config_params.config_path
-        preset_file = model_config_params.PresetPara
+        config_path = g_cp.config_path
+        preset_file = g_cp.PresetPara
         out_path = os.path.join(config_path, preset_file)
 
         try:
@@ -342,8 +351,8 @@ class Model:
     def load_preset_params(self):
         try:
             # 载入预先计算好的指标信息
-            config_path = model_config_params.config_path
-            preset_file = model_config_params.PresetPara
+            config_path = g_cp.config_path
+            preset_file = g_cp.PresetPara
             out_path = os.path.join(config_path, preset_file)
 
             df_para=pd.read_csv(out_path, header=0, index_col=0)
@@ -364,8 +373,7 @@ class Model:
 
     #  目标优化计算
     #  type='multiple'表示多目标优化，type='s_{name}'为具体name的单目标优化
-    def execute_obj(self, type=model_config_params.Indicator_multi, EvaObj=None, sense=sense_max, w=None,
-                    io_field=model_layer_meta.name_io.lower(), bi_field=model_layer_meta.name_plabi.lower()):
+    def execute_obj(self, type=g_cp.Indicator_multi, EvaObj=None, sense=sense_max, w=None,):
         try:
             if self.model is None:
                 return False
@@ -378,7 +386,7 @@ class Model:
                 if self.model_res is None:
                     self.model_res = self.create_model_result()
                 self.model_res = self.export_result_to_temp(type, self.model_res, sorted_inds, sols,
-                                                            sol_list, io_field, bi_field)
+                                                            sol_list)
             return self.model_res
         except:
             return None
@@ -433,6 +441,47 @@ class Model:
 
         return sorted_inds, sols, sol_list
 
+    def fix_indicator_value(self):
+        fix_values = {}
+        #  模型结果要把其他14类都考虑进来，重新计算14类固定部分的数据
+        df_land = self.read_file(self.name_layer_PotentialLand, fix_type_filter)
+        df_land.set_index(self.name_landid, inplace=True)
+
+        df_grid = self.m_db.execute_dict(
+            '''SELECT * FROM (
+                SELECT DISTINCT(unitid) AS unitid,
+                    (CASE
+                        WHEN (bi < 0.3 or bi > 2) and UnitType = '城镇单元' THEN 1
+                        ELSE 0 
+                     END) AS Unit_IN, weight as Unit_BI_WT 
+                FROM {}
+                WHERE {}
+            ) WHERE Unit_IN = 1
+            '''.format(self.name_layer_match, fix_type_filter)
+        )
+        df_grid = pd.DataFrame.from_dict(df_grid)
+        df_grid.set_index(self.name_unitid, inplace=True)
+
+        value = (df_land[self.name_r_po] - df_land[self.name_CurRBld]).map(
+            lambda x: 0 if x < 0 else x
+        ).sum()
+        fix_values[g_cp.Indicator_net] = value
+
+        value = df_land[self.name_CurRBld].sum()
+        fix_values[g_cp.Indicator_demo] = value
+
+        value = df_land.query('{}==1'.format(self.name_MetroIf))[
+            "{}".format(self.name_r_po)].sum()
+        fix_values[g_cp.Indicator_acc] = value
+
+        value = df_land['{}'.format(self.name_PublicService)].sum()
+        fix_values[g_cp.Indicator_pubService] = value
+
+        value = df_grid['Unit_BI_WT'].sum()
+        fix_values[g_cp.Indicator_bi] = value
+
+        return fix_values
+
     # 创建一个模型结果对象
     def create_model_result(self):
         res = ModelResult()
@@ -440,16 +489,16 @@ class Model:
         res.ID = _id
         res.name = self.model_name
         res.layers = {
-            "land": model_layer_meta.name_layer_PotentialLand,
-            "grid": model_layer_meta.name_layer_Grid
+            "land": g_lm.name_layer_PotentialLand,
+            "grid": g_lm.name_layer_Grid
         }
 
-        if not os.path.exists(model_config_params.result_folder):
-            os.mkdir(model_config_params.result_folder)
-        model_path = os.path.join(model_config_params.result_folder, "model_files")
+        if not os.path.exists(g_cp.result_folder):
+            os.mkdir(g_cp.result_folder)
+        model_path = os.path.join(g_cp.result_folder, "model_files")
         if not os.path.exists(model_path):
             os.mkdir(model_path)
-        ds_path = os.path.join(model_config_params.result_folder, "model_files", self.model_name)
+        ds_path = os.path.join(g_cp.result_folder, "model_files", self.model_name)
         if os.path.exists(ds_path + ".sqlite"):
             ds_path = ds_path + "_" + _id + ".sqlite"
         else:
@@ -457,42 +506,45 @@ class Model:
 
         res.dataSource = ds_path
 
+        fix_values = self.fix_indicator_value()
+        self.fix_values = fix_values
+
         #  net increase变量的极值范围
         max_ = (self.m_df_land[self.name_r_po] - self.m_df_land[self.name_CurRBld]).map(
             lambda x: 0 if x < 0 else x
         ).sum()
-        res.ranges[model_config_params.Indicator_net] = [0, max_]
+        res.ranges[g_cp.Indicator_net] = [0, max_ + fix_values[g_cp.Indicator_net]]
 
         #  demolish变量的极值范围
         min_ = self.m_df_land[self.name_CurRBld].sum() * -1
-        res.ranges[model_config_params.Indicator_demo] = [min_, 0]
+        res.ranges[g_cp.Indicator_demo] = [min_ + fix_values[g_cp.Indicator_demo] * -1, 0]
 
         #  acc变量的极值范围
         max_ = self.m_df_land.query('{}==1'.format(self.name_MetroIf))[
             "{}".format(self.name_r_po)].sum()
-        res.ranges[model_config_params.Indicator_acc] = [0, max_]
+        res.ranges[g_cp.Indicator_acc] = [0, max_ + fix_values[g_cp.Indicator_acc]]
 
         #  pubService的极值范围
         max_ = self.m_df_land['{}'.format(self.name_PublicService)].sum()
-        res.ranges[model_config_params.Indicator_pubService] = [0, max_]
+        res.ranges[g_cp.Indicator_pubService] = [0, max_ + fix_values[g_cp.Indicator_pubService]]
 
         #  BI的极值范围
         max_ = self.m_df_grid['Unit_BI_WT'].sum()
-        res.ranges[model_config_params.Indicator_bi] = [0, max_]
+        res.ranges[g_cp.Indicator_bi] = [0, max_ + fix_values[g_cp.Indicator_bi]]
 
         res.score = {}
 
         return res
 
-    #  io_field和bi_field是需要挂接的临时表名和临时字段名， 临时表和临时字段同名
-    def export_result_to_temp(self, type, res, sorted_inds, sols, sol_list, io_field, bi_field):
+    #
+    def export_result_to_temp(self, type, res, sorted_inds, sols, sol_list):
         try:
-            ds_path = res.dataSource
-
-            if type != model_config_params.Indicator_multi:
+            if type != g_cp.Indicator_multi:
                 obj_key = type.split("_")[1]
+                obj_no = Weight_neccessary[obj_key][1]   # 方案编号
             else:
-                obj_key = model_config_params.Indicator_multi
+                obj_key = g_cp.Indicator_multi
+                obj_no = 0
 
             # 保存最优值
             Land_IO = []
@@ -508,43 +560,54 @@ class Model:
             Indicator_value.append(["BI", sol_list[sorted_inds[0]][4]])
 
             for i in self.LandIDs:
-                Land_IO.append([i, round(sols[bnum][self.x[i]]), self.m_df_land.loc[i, model_layer_meta.name_r_po]])
+                Land_IO.append([i, round(sols[bnum][self.x[i]]), self.m_df_land.loc[i, self.name_r_po]])
             for j in self.UnitIDs:
                 Unit_BI.append([j, 1 / (sols[bnum][self.x_Unit_PlaBI[j]])])
 
-            df_Land_IO=pd.DataFrame(Land_IO, columns=[model_layer_meta.name_landid, io_field,
-                                                      model_layer_meta.name_r_po])
-            df_Unit_BI=pd.DataFrame(Unit_BI, columns=[model_layer_meta.name_unitid, bi_field])
+            df_Land_IO=pd.DataFrame(Land_IO, columns=[self.name_landid, self.name_io,
+                                                      self.name_r_po])
+            df_Land_IO.set_index(self.name_landid, inplace=True)
+
+            df_Unit_BI=pd.DataFrame(Unit_BI, columns=[self.name_unitid, self.name_plabi])
+            df_Unit_BI.set_index(self.name_unitid, inplace=True)
+
             df_Indicator_value=pd.DataFrame(Indicator_value, columns=["Indicator", "value"])
 
-            #  join result
-            self.join_result_to_origin_layer(df_Land_IO, model_layer_meta.name_layer_PotentialLand,
-                                             io_field,
-                                             model_layer_meta.name_landid, io_field, "Integer", 1)
-            self.join_result_to_origin_layer(df_Unit_BI, model_layer_meta.name_layer_Grid,
-                                             bi_field,
-                                             model_layer_meta.name_unitid, bi_field, "Real", -1)
+            self.join_grid_to_temp(obj_key, df_Unit_BI)
+            self.join_land_to_temp(obj_key, df_Land_IO[[self.name_io]])
+
+            # join io字段, land表把所有io字段Join到一张表上
+            # self.join_result_to_origin_layer(df_Land_IO, g_lm.name_layer_PotentialLand,
+            #                                  self.name_io,
+            #                                  g_lm.name_landid, self.name_io, "Integer", 1)
+
+            # grid表先创建临时表，把所有统计字段都join起来，然后再和原表join创建一张新表，每个方案一张表
+
+            # # join plaBI字段
+            # self.join_result_to_origin_layer(df_Unit_BI, g_lm.name_layer_Grid,
+            #                                  self.name_plabi,
+            #                                  g_lm.name_unitid, self.name_plabi, "Real", -1)
 
             cur = {}
             #  net increase变量的当前值
-            cur_ = df_Indicator_value.query('Indicator=="{}"'.format(model_config_params.Indicator_net)).iloc[0, 1]
-            cur[model_config_params.Indicator_net] = cur_
+            cur_ = df_Indicator_value.query('Indicator=="{}"'.format(g_cp.Indicator_net)).iloc[0, 1]
+            cur[g_cp.Indicator_net] = cur_ + self.fix_values[g_cp.Indicator_net]
 
             #  demolish变量的当前值
-            cur_ = df_Indicator_value.query('Indicator=="{}"'.format(model_config_params.Indicator_demo)).iloc[0, 1] * -1
-            cur[model_config_params.Indicator_demo] = cur_
+            cur_ = df_Indicator_value.query('Indicator=="{}"'.format(g_cp.Indicator_demo)).iloc[0, 1] * -1
+            cur[g_cp.Indicator_demo] = cur_ + self.fix_values[g_cp.Indicator_demo] * -1
 
             #  acc变量的当前值
-            cur_ = (df_Land_IO[io_field] * df_Land_IO[model_layer_meta.name_r_po]).sum()
-            cur[model_config_params.Indicator_acc] = cur_
+            cur_ = (df_Land_IO[self.name_io] * df_Land_IO[self.name_r_po]).sum()
+            cur[g_cp.Indicator_acc] = cur_ + self.fix_values[g_cp.Indicator_acc]
 
             #  pubService的极值范围
-            cur_ = df_Indicator_value.query('Indicator=="{}"'.format(model_config_params.Indicator_pubService)).iloc[0, 1]
-            cur[model_config_params.Indicator_pubService] = cur_
+            cur_ = df_Indicator_value.query('Indicator=="{}"'.format(g_cp.Indicator_pubService)).iloc[0, 1]
+            cur[g_cp.Indicator_pubService] = cur_ + self.fix_values[g_cp.Indicator_pubService]
 
             #  BI的极值范围
-            cur_ = df_Indicator_value.query('Indicator=="{}"'.format(model_config_params.Indicator_bi)).iloc[0, 1]
-            cur[model_config_params.Indicator_bi] = cur_
+            cur_ = df_Indicator_value.query('Indicator=="{}"'.format(g_cp.Indicator_bi)).iloc[0, 1]
+            cur[g_cp.Indicator_bi] = cur_ + self.fix_values[g_cp.Indicator_bi]
 
             res.score[obj_key] = {
                 'current': cur,
@@ -557,20 +620,131 @@ class Model:
             return None
 
     #  导出结果图形
-    def export_spatial_layer(self, ds_path):
-        out_lyr = QgsVectorLayer("{}|layername={}".format(self.db_name, model_layer_meta.name_layer_PotentialLand),
-                                 model_layer_meta.name_layer_PotentialLand, 'ogr')
-        # output_file_land = os.path.join(model_path, model_layer_meta.name_layer_PotentialLand)
-        # self.write_to_model_files(out_lyr, output_file_land, model_layer_meta.name_layer_PotentialLand)
-        self.write_to_model_files(out_lyr, ds_path, model_layer_meta.name_layer_PotentialLand)
+    def export_spatial_layer(self, ds_path, obj_names):
+        for obj_name in obj_names:
+            out_land_name = obj_name + '_land'
+            exec_str = '''SELECT RecoverGeometryColumn('{}', 'GEOMETRY', {}, 'MULTIPOLYGON', 'xy')'''.format(
+                out_land_name, g_cp.srs_id)
+            exec_res = self.dataSource.ExecuteSQL(exec_str)
+            self.dataSource.ReleaseResultSet(exec_res)
 
-        #  导出标准单元图层
-        out_lyr = QgsVectorLayer("{}|layername={}".format(self.db_name, model_layer_meta.name_layer_Grid),
-                                 model_layer_meta.name_layer_Grid, 'ogr')
-        # output_file_grid = os.path.join(model_path, model_layer_meta.name_layer_Grid)
-        # self.write_to_model_files(out_lyr, output_file_grid, model_layer_meta.name_layer_Grid)
-        self.write_to_model_files(out_lyr, ds_path, model_layer_meta.name_layer_Grid)
+            # url = r'''dbname='{}' table="{}" (geometry)'''.format(self.db_name, out_name)
+            url = "{}|layername={}".format(self.db_name, out_land_name)
+            out_lyr = QgsVectorLayer(url, out_land_name, 'ogr')
+            # output_file_land = os.path.join(model_path, g_lm.name_layer_PotentialLand)
+            # self.write_to_model_files(out_lyr, output_file_land, g_lm.name_layer_PotentialLand)
+            self.write_to_model_files(out_lyr, ds_path, out_land_name)
 
+            #  导出标准单元图层
+            out_grid_name = obj_name + '_grid'
+            exec_str = '''SELECT RecoverGeometryColumn('{}', 'GEOMETRY', {}, 'MULTIPOLYGON', 'xy')'''.format(
+                out_grid_name, g_cp.srs_id)
+            exec_res = self.dataSource.ExecuteSQL(exec_str)
+            self.dataSource.ReleaseResultSet(exec_res)
+
+            # url = r'''dbname='{}' table="{}" (geometry)'''.format(self.db_name, out_name)
+            url = "{}|layername={}".format(self.db_name, out_grid_name)
+            out_lyr = QgsVectorLayer(url, out_grid_name, 'ogr')
+            self.write_to_model_files(out_lyr, ds_path, out_grid_name)
+
+            self.model_res.layers[obj_name] = {
+                'land': out_land_name,
+                'grid': out_grid_name
+            }
+
+    def join_land_to_temp(self, obj_key, df_land_IO):
+        r = self.m_db.execute_dict('''
+            SELECT DISTINCT({}), * FROM {}
+        '''.format(self.name_landid, self.name_layer_PotentialLand))
+        df_land = pd.DataFrame(r)
+        df_land.set_index(self.name_landid, inplace=True)
+
+        res = df_land.join(df_land_IO, on=self.name_landid, how='outer')
+        res.fillna({'io': 1}, inplace=True)
+
+        # 最后把临时表写入数据库
+        # engine = create_engine(r'sqlite:///{}'.format(self.db_name), echo=False)
+        self.m_db.connect()
+        # res.to_sql(obj_key + '_land', con=self.m_db.connection, if_exists='replace', index=False)
+        res.to_sql(obj_key + '_land', con=self.m_db.connection, if_exists='replace', index=False,
+                   dtype={
+                       'ogc_fid': 'INTEGER PRIMARY KEY',
+                       self.name_io: 'INTEGER'
+                   })  # 这里必须指定一个primary key，否则会把rowid当做FID
+
+    # 将join后的表创建一张临时表
+    def join_grid_to_temp(self, obj_key, df_Unit_BI):
+        #  首先，统计grid表每个unitid的指标值
+        r = self.m_db.execute_dict('''
+            SELECT DISTINCT({}), * FROM {}
+        '''.format(self.name_unitid, self.name_layer_grid))
+        df_grid = pd.DataFrame(r)
+        df_grid.set_index(self.name_unitid, inplace=True)
+
+        r = self.m_db.execute_dict('''
+                SELECT DISTINCT({}), SUM({} - {}) as {} FROM {} 
+                GROUP BY {}
+            '''.format(self.name_unitid, self.name_r_po, self.name_CurRBld,
+                       g_cp.Indicator_net, self.name_layer_match, self.name_unitid))
+        df_net = pd.DataFrame(r)
+        df_net.set_index(self.name_unitid, inplace=True)
+
+        r = self.m_db.execute_dict('''
+                SELECT DISTINCT({}), SUM({} - {}) as {} FROM {} 
+                GROUP BY {}
+            '''.format(self.name_unitid, self.name_r_po, self.name_CurRBld,
+                       g_cp.Indicator_net, self.name_layer_match, self.name_unitid))
+        df_net = pd.DataFrame(r)
+        df_net.set_index(self.name_unitid, inplace=True)
+        df_net = df_net[g_cp.Indicator_net].map(
+            lambda x: 0 if x < 0 else x
+        )
+
+        r = self.m_db.execute_dict('''
+                SELECT DISTINCT({}), SUM({}) as {} FROM {} 
+                GROUP BY {}
+            '''.format(self.name_unitid, self.name_CurRBld,
+                       g_cp.Indicator_demo, self.name_layer_match, self.name_unitid))
+        df_demo = pd.DataFrame(r)
+        df_demo.set_index(self.name_unitid, inplace=True)
+        df_demo = df_demo[g_cp.Indicator_demo].map(
+            lambda x: 0 if x == 0 else x * -1
+        )
+
+        r = self.m_db.execute_dict('''
+                SELECT DISTINCT({}), SUM({}) as {} FROM {}
+                WHERE {} = 1 
+                GROUP BY {}
+            '''.format(self.name_unitid, self.name_r_po,
+                       g_cp.Indicator_acc, self.name_layer_match, self.name_MetroIf, self.name_unitid))
+        df_acc = pd.DataFrame(r)
+        df_acc.set_index(self.name_unitid, inplace=True)
+
+        r = self.m_db.execute_dict('''
+                SELECT DISTINCT({}), SUM({}) as {} FROM {} 
+                GROUP BY {}
+            '''.format(self.name_unitid, self.name_PublicService,
+                       g_cp.Indicator_pubService, self.name_layer_match, self.name_unitid))
+        df_publicService = pd.DataFrame(r)
+        df_publicService.set_index(self.name_unitid, inplace=True)
+
+        # 然后join到一张临时表
+        res = df_grid.join(df_net, on=self.name_unitid, how='outer')
+        res = res.join(df_demo, on=self.name_unitid, how="outer")
+        res = res.join(df_acc, on=self.name_unitid, how="outer")
+        res = res.join(df_publicService, on=self.name_unitid, how="outer")
+        res = res.join(df_Unit_BI, on=self.name_unitid, how="outer")
+
+        # 最后把临时表写入数据库，表名叫 obj_key + '_grid'
+        # engine = create_engine(r'sqlite:///{}'.format(self.db_name), echo=False)
+        self.m_db.connect()
+        # res.to_sql(obj_key + '_grid', con=self.m_db.connection, if_exists='replace', index=False)
+        res.to_sql(obj_key + '_grid', con=self.m_db.connection, if_exists='replace', index=False,
+                   dtype={
+                       'ogc_fid': 'INTEGER PRIMARY KEY'
+                   })
+
+    # 在原有表基础上join新字段
     def join_result_to_origin_layer(self, df_join, origin_lyr, res_lyr,  index_col_name, join_col_name, data_type, default_value):
         engine = create_engine(r'sqlite:///{}'.format(self.db_name), echo=False)
         df_join.to_sql(res_lyr, con=engine, if_exists='replace', index=False,
@@ -578,7 +752,7 @@ class Model:
 
         exec_str = '''
                     ALTER TABLE {} ADD COLUMN {} {}
-                '''.format(origin_lyr, join_col_name, data_type)  #  model_layer_meta.name_layer_PotentialLand
+                '''.format(origin_lyr, join_col_name, data_type)  #  g_lm.name_layer_PotentialLand
         self.m_db.execute(exec_str)
 
         exec_str = '''
@@ -606,6 +780,13 @@ class Model:
         save_options.EditionCapability = QgsVectorFileWriter.CanAddNewLayer
         transform_context = QgsProject.instance().transformContext()
         layer.setProviderEncoding("utf-8")
+
+        #  把原来默认的ogc_fid去掉
+        fid_index = layer.fields().indexFromName('ogc_fid')
+        if fid_index > -1:
+            out_fieldList = layer.attributeList()
+            out_fieldList.remove(fid_index)
+            save_options.attributes = out_fieldList
 
         error = QgsVectorFileWriter.writeAsVectorFormatV3(layer,
                                                           output_file,

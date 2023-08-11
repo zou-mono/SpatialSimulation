@@ -19,13 +19,13 @@ from qgis._core import QgsVectorLayer, QgsProject, QgsVectorFileWriter, QgsStyle
 
 from UI.UIModelCal import Ui_frmModelCal
 from UICore.SpModel import modelCal
-from UICore.common import get_qgis_style, get_field_index_no_case
+from UICore.common import get_qgis_style, get_field_index_no_case, get_srs_id
 from UICore.log4p import Log
 from UICore.DataFactory import workspaceFactory
 from osgeo import ogr, gdal
-from UICore.Gv import DataType, model_config_params, model_layer_meta, Weight_neccessary, prop_neccessary, \
-    land_type_dict
-from UICore.renderer import categrorized_renderer, single_renderer
+from UICore.Gv import DataType, model_config_params as g_cp, model_layer_meta as g_lm, Weight_neccessary, prop_neccessary, \
+    land_type_dict, model_neccessary_field as g_nf
+from UICore.renderer import categrorized_renderer, single_renderer, color_land_type
 from UICore.styles import table_default_style
 from UICore.workerThread import ModelCalWorker
 
@@ -36,29 +36,29 @@ Slot = QtCore.pyqtSlot
 
 log = Log(__name__)
 
-Grid_neccessary_fields = {
-    # '标准单元编号': ['UnitID', 'num'],
-    '未来就业岗位': ['PlaJOB', 'num'],
-    # '规划居住建筑总面积': ['PlaBS', 'num'],
-    '单元现状人口总数': ['CurPOP', 'num'],
-    '单元现状就业岗位总数': ['CurJOB', 'num'],
-    '单元类型': ['UnitType', 'str']
-}
-
-Potential_Land_neccessary_fields = {
-    # '居住地块编号': ['LandID', 'num'],
-    '居住地块用地路径类型': ['Type', 'num'],
-    '居住地块现状所有建筑面积': ['CurBldAdj', 'num'],
-    '居住地块现状居住建筑面积': ['CurRBld', 'num'],
-    '新建居住建筑潜力面积': ['R_Po', 'num'],
-    '是否在地铁站范围内': ['Metro_IF', 'num'],
-    '可享用的公服面积': ['PubService', 'num']
-}
-
 tbl_weight_col = 1  # 评价权重列
 tbl_prop_col = 1  # 用地使用率列
 tbl_single_check_col = 2  # 单目标优化状态列
 exclude_single_row = []  # 不参与单目标优化的行
+
+Grid_neccessary_fields = {
+    # '标准单元编号': ['UnitID', 'num'],
+    g_nf.grid.name_plajob: [g_lm.name_plajob, 'num'],
+    # '规划居住建筑总面积': ['PlaBS', 'num'],
+    g_nf.grid.name_CurPop: [g_lm.name_CurPop, 'num'],
+    g_nf.grid.name_CurJOB: [g_lm.name_CurJOB, 'num'],
+    g_nf.grid.name_UnitType: [g_lm.name_UnitType, 'str']
+}
+
+Potential_Land_neccessary_fields = {
+    # '居住地块编号': ['LandID', 'num'],
+    g_nf.land.name_type: [g_lm.name_type, 'num'],
+    g_nf.land.name_CurBldAdj: [g_lm.name_CurBldAdj, 'num'],
+    g_nf.land.name_CurRBld: [g_lm.name_CurRBld, 'num'],
+    g_nf.land.name_r_po: [g_lm.name_r_po, 'num'],
+    g_nf.land.name_MetroIF: [g_lm.name_MetroIF, 'num'],
+    g_nf.land.name_PublicService: [g_lm.name_PublicService, 'num']
+}
 
 class frmModelCal(QWidget, Ui_frmModelCal):
     def __init__(self, parent=None):
@@ -88,14 +88,14 @@ class frmModelCal(QWidget, Ui_frmModelCal):
         self.bFirstShow = True
 
         self.input_qLayer_dict = {
-            '标准单元': "None",
-            '潜力用地': "None"
+            g_lm.name_layer_PotentialLand: "None",
+            g_lm.name_layer_Grid: "None"
         }
 
         self.mapCanvas = parent.mapCanvas
 
-        self.config_path = model_config_params.config_path
-        self.param_file = model_config_params.param_file
+        self.config_path = g_cp.config_path
+        self.param_file = g_cp.param_file
         self.param_path = os.path.join(self.config_path, self.param_file)
 
     #  初始化模型参数
@@ -106,8 +106,8 @@ class frmModelCal(QWidget, Ui_frmModelCal):
                 df = pd.read_excel(self.param_path, sheet_name=None)
                 lst_names = list(df)
 
-                if model_config_params.Potential_Constraint not in lst_names or \
-                        model_config_params.IndicatorWeight not in lst_names:
+                if g_cp.Potential_Constraint not in lst_names or \
+                        g_cp.IndicatorWeight not in lst_names:
                     raise Exception("error")
 
                 self.use_params(self.param_path)
@@ -141,13 +141,13 @@ class frmModelCal(QWidget, Ui_frmModelCal):
                  {"Type": 7, "AREA": 0, 'R_Po_R': 0.05, 'Precision': 0.01, 'L_R_Po_R': 0.0495, 'R_R_Po_R': 0.0505},
                  {"Type": 8, "AREA": 0, 'R_Po_R': 0.1, 'Precision': 0.01, 'L_R_Po_R': 0.099, 'R_R_Po_R': 0.101},
                  {"Type": 9, "AREA": 0, 'R_Po_R': 0.3, 'Precision': 0.01, 'L_R_Po_R': 0.297, 'R_R_Po_R': 0.303}])
-            df.to_excel(write, sheet_name=model_config_params.Potential_Constraint, index=False)
+            df.to_excel(write, sheet_name=g_cp.Potential_Constraint, index=False)
 
             tList = []
             for key, value in Weight_neccessary.items():
                 tList.append({
-                    model_layer_meta.name_indicator: key,
-                    model_layer_meta.name_weight: 0.2
+                    g_lm.name_indicator: key,
+                    g_lm.name_weight: 0.2
                 })
 
             df = pd.DataFrame(tList)
@@ -157,7 +157,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
             #                    {"Indicator": 'Acc', "Weight": 0.1},
             #                    {"Indicator": 'PublicService', "Weight": 0.1},
             #                    {"Indicator": 'BI', "Weight": 0.1}])
-            df.to_excel(write, sheet_name=model_config_params.IndicatorWeight, index=False)
+            df.to_excel(write, sheet_name=g_cp.IndicatorWeight, index=False)
 
             return True
         except:
@@ -168,7 +168,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
                 write.close()
 
     def use_params(self, param_path):
-        df = pd.read_excel(param_path, sheet_name=model_config_params.Potential_Constraint, header=0, index_col='Type')
+        df = pd.read_excel(param_path, sheet_name=g_cp.Potential_Constraint, header=0, index_col='Type')
         df = self.launder_df_order(df, prop_neccessary)
         irow = 0
         for k, v in land_type_dict.items():
@@ -185,7 +185,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
 
         self.df_constraint = df
 
-        df = pd.read_excel(param_path, sheet_name=model_config_params.IndicatorWeight, index_col='Indicator')
+        df = pd.read_excel(param_path, sheet_name=g_cp.IndicatorWeight, index_col='Indicator')
         df = self.launder_df_order(df, Weight_neccessary)
         irow = 0
         checkStates = []
@@ -211,7 +211,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
             new_item = self.tbl_weight.item(row, tbl_single_check_col)
             self.tbl_weight.openPersistentEditor(new_item)
 
-        df[model_layer_meta.name_bSingleCal] = checkStates  # 增加一列用于判断是否进行单目标优化
+        df[g_lm.name_bSingleCal] = checkStates  # 增加一列用于判断是否进行单目标优化
         self.df_indicator_Weight = df
 
     # 将从excel读取的df顺序和设定字典顺序一致
@@ -222,8 +222,8 @@ class frmModelCal(QWidget, Ui_frmModelCal):
         return new_df
 
     def write_params_to_memory(self):
-        # df1 = pd.read_excel(param_path, sheet_name=model_config_params.Potential_Constraint)
-        # df2 = pd.read_excel(param_path, sheet_name=model_config_params.IndicatorWeight)
+        # df1 = pd.read_excel(param_path, sheet_name=g_cp.Potential_Constraint)
+        # df2 = pd.read_excel(param_path, sheet_name=g_cp.IndicatorWeight)
         irow = 0
         for key, value in prop_neccessary.items():
             v = float(self.tbl_prop.item(irow, tbl_prop_col).data(Qt.UserRole))
@@ -236,13 +236,26 @@ class frmModelCal(QWidget, Ui_frmModelCal):
         irow = 0
         for key in Weight_neccessary.keys():
             self.df_indicator_Weight.loc[key, 'Weight'] = float(self.tbl_weight.item(irow, tbl_weight_col).data(Qt.EditRole))
-            self.df_indicator_Weight.loc[key, model_layer_meta.name_bSingleCal] = \
+            self.df_indicator_Weight.loc[key, g_lm.name_bSingleCal] = \
                 self.tbl_weight.item(irow, tbl_single_check_col).data(Qt.UserRole)
             irow += 1
 
+    def update_neccessary_field_name(self, vGrid, vLand):
+        g_lm.name_plajob = vGrid[g_nf.grid.name_plajob]
+        g_lm.name_CurPop = vGrid[g_nf.grid.name_CurPop]
+        g_lm.name_CurJOB = vGrid[g_nf.grid.name_CurJOB]
+        g_lm.name_UnitType = vGrid[g_nf.grid.name_UnitType]
+
+        g_lm.name_type = vLand[g_nf.land.name_type]
+        g_lm.name_CurBldAdj = vLand[g_nf.land.name_CurBldAdj]
+        g_lm.name_CurRBld = vLand[g_nf.land.name_CurRBld]
+        g_lm.name_r_po = vLand[g_nf.land.name_r_po]
+        g_lm.name_MetroIF = vLand[g_nf.land.name_MetroIF]
+        g_lm.name_PublicService = vLand[g_nf.land.name_PublicService]
+
     # def write_params_to_file(self, param_path):
-    #     df1 = pd.read_excel(param_path, sheet_name=model_config_params.Potential_Constraint)
-    #     df2 = pd.read_excel(param_path, sheet_name=model_config_params.IndicatorWeight)
+    #     df1 = pd.read_excel(param_path, sheet_name=g_cp.Potential_Constraint)
+    #     df2 = pd.read_excel(param_path, sheet_name=g_cp.IndicatorWeight)
     #
     #     write = pd.ExcelWriter(param_path)
     #
@@ -251,33 +264,9 @@ class frmModelCal(QWidget, Ui_frmModelCal):
     #     df1.loc[0, 'R_Po_R'] = v
     #     df1.loc[0, 'L_R_Po_R'] = v - v * precision
     #     df1.loc[0, 'R_R_Po_R'] = v + v * precision
-    #
-    #     v = float(self.txt_type_tdzb.text())
-    #     precision = df1.at[1, 'Precision']
-    #     df1.loc[1, 'R_Po_R'] = v
-    #     df1.loc[1, 'L_R_Po_R'] = v - v * precision
-    #     df1.loc[1, 'R_R_Po_R'] = v + v * precision
-    #
-    #     v = float(self.txt_type_zzgjz.text())
-    #     precision = df1.at[2, 'Precision']
-    #     df1.loc[2, 'R_Po_R'] = v
-    #     df1.loc[2, 'L_R_Po_R'] = v - v * precision
-    #     df1.loc[2, 'R_R_Po_R'] = v + v * precision
-    #
-    #     v = float(self.txt_type_gygjz.text())
-    #     precision = df1.at[3, 'Precision']
-    #     df1.loc[3, 'R_Po_R'] = v
-    #     df1.loc[3, 'L_R_Po_R'] = v - v * precision
-    #     df1.loc[3, 'R_R_Po_R'] = v + v * precision
-    #
-    #     df2.loc[0, 'Weight'] = float(self.txt_indicator_xzjjl.text())
-    #     df2.loc[1, 'Weight'] = float(self.txt_indicator_ccjzl.text())
-    #     df2.loc[2, 'Weight'] = float(self.txt_indicator_zzphzs.text())
-    #     df2.loc[3, 'Weight'] = float(self.txt_indicator_jtkdx.text())
-    #     df2.loc[4, 'Weight'] = float(self.txt_indicator_ggfwsp.text())
-    #
-    #     df1.to_excel(write, sheet_name=model_config_params.Potential_Constraint, index=False)
-    #     df2.to_excel(write, sheet_name=model_config_params.IndicatorWeight, index=False)
+
+    #     df1.to_excel(write, sheet_name=g_cp.Potential_Constraint, index=False)
+    #     df2.to_excel(write, sheet_name=g_cp.IndicatorWeight, index=False)
     #     write.close()
 
     def showEvent(self, QShowEvent):
@@ -355,7 +344,7 @@ class frmModelCal(QWidget, Ui_frmModelCal):
     # 标准单元图层
     def addGridFile_clicked(self):
         try:
-            status, fileName, layer = self.add_spatial_data("标准单元", self.tbl_GridField, Grid_neccessary_fields)
+            status, fileName, layer = self.add_spatial_data(g_lm.name_layer_Grid, self.tbl_GridField, Grid_neccessary_fields)
 
             if not status:
                 self.txt_GridFile.setText("")
@@ -371,27 +360,35 @@ class frmModelCal(QWidget, Ui_frmModelCal):
     # 潜力用地图层
     def addPotentialLandFile_clicked(self):
         try:
-            status, fileName, layer = self.add_spatial_data("潜力用地", self.tbl_PotentialLandField,
-                                                     Potential_Land_neccessary_fields)
+            status, fileName, layer = self.add_spatial_data(g_lm.name_layer_PotentialLand, self.tbl_PotentialLandField,
+                                                            Potential_Land_neccessary_fields)
 
             if not status:
                 self.txt_PotentialLandFile.setText("")
                 return
 
-            sty = get_qgis_style()
-            if sty is not None:
-                color_ramp = sty.colorRamp("Spectral")
-                if color_ramp is not None:
-                    color_ramp.invert()
+            # sty = get_qgis_style()
+            # if sty is not None:
+                # color_ramp = sty.colorRamp("Spectral")
+                # if color_ramp is not None:
+                #     color_ramp.invert()
 
-                    fni, field_name = get_field_index_no_case(layer, model_layer_meta.name_type)
-                    # fni = layer.dataProvider().fields().indexFromName(model_layer_meta.name_type)
-                    if fni == -1:
-                        log.warning("分级渲染图层{}不存在，无法完成渲染!".format(model_layer_meta.name_type))
-                    else:
-                        categrorized_renderer(layer, fni, field_name, color_ramp)
-                else:
-                    log.warning("Spectral颜色板丢失，无法完成图层渲染！")
+            fni, field_name = get_field_index_no_case(layer, g_lm.name_type)
+            # fni = layer.dataProvider().fields().indexFromName(g_lm.name_type)
+            if fni == -1:
+                log.warning("分级渲染图层{}不存在，无法完成渲染!".format(g_lm.name_type))
+            else:
+                spec_dict = {}
+                for type_index in land_type_dict:
+                    symbol_layer = QgsSimpleFillSymbolLayer.create({
+                        'color': color_land_type[type_index],
+                        'outline_color': color_land_type[type_index]
+                    })
+                    spec_dict[type_index] = symbol_layer
+
+                categrorized_renderer(layer, fni, land_type_dict, field_name, spec_dict=spec_dict)
+                # else:
+                #     log.warning("Spectral颜色板丢失，无法完成图层渲染！")
 
             self.txt_PotentialLandFile.setText(fileName)
         except:
@@ -524,8 +521,14 @@ class frmModelCal(QWidget, Ui_frmModelCal):
                 self.vGrid_field = self.check_field(ds_Grid, self.tbl_GridField, "标准单元")
                 self.vPotential_field = self.check_field(ds_PotentialLand, self.tbl_PotentialLandField, "潜力用地")
 
+                #  更新全局变量名
+                self.update_neccessary_field_name(self.vGrid_field, self.vPotential_field)
+
                 lyr_Grid = ds_Grid.GetLayer(0)
                 lyr_PotentialLand = ds_PotentialLand.GetLayer(0)
+
+                srs = lyr_Grid.GetSpatialRef()
+                g_cp.srs_id = get_srs_id(srs)
 
                 log.info("模型输入参数检查...")
                 self.check_model_param()
@@ -537,15 +540,15 @@ class frmModelCal(QWidget, Ui_frmModelCal):
                 self.modelCalThread.finished.connect(self.threadStop)
 
                 cur_path, filename = os.path.split(os.path.abspath(sys.argv[0]))
-                res_path = os.path.join(cur_path, model_config_params.result_folder)
+                res_path = os.path.join(cur_path, g_cp.result_folder)
                 if not os.path.exists(res_path):
                     os.mkdir(res_path)
 
                 self.write_params_to_memory()
 
-                layers = []
-                for qlayer_id in self.input_qLayer_dict.values():
-                    layers.append(QgsProject.instance().mapLayer(qlayer_id))
+                layers = {}
+                for key, qlayer_id in self.input_qLayer_dict.items():
+                    layers[key] = QgsProject.instance().mapLayer(qlayer_id)
 
                 if self.txt_model_name.text().strip() == "":
                     model_name = "model_" + time.strftime('%Y-%m-%d-%H-%M-%S')

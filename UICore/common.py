@@ -37,6 +37,7 @@ def get_qgis_style():
     else:
         return sty
 
+
 #  不考虑字段名的大小写敏感
 def get_field_index_no_case(layer, match_name):
     field_names = layer.dataProvider().fields().names()
@@ -48,6 +49,7 @@ def get_field_index_no_case(layer, match_name):
             return index, field_name
         index += 1
     return -1, match_name
+
 
 def is_already_opened_in_write_mode(filename):
     if os.path.exists(filename):

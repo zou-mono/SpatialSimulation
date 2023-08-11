@@ -61,6 +61,7 @@ class Ui_Window(QMainWindow, UI.UIMainWindow.Ui_MainWindow):
         self.model.setFlag(QgsLayerTreeModel.AllowNodeReorder)
         self.model.setFlag(QgsLayerTreeModel.AllowNodeChangeVisibility)
         self.tocView.setModel(self.model)
+        self.root.visibilityChanged.connect(self.checkChanged)
 
         self.bridge = QgsLayerTreeMapCanvasBridge(self.root, self.mapCanvas, self)
 
@@ -92,6 +93,9 @@ class Ui_Window(QMainWindow, UI.UIMainWindow.Ui_MainWindow):
         # self.tabWidget.setTabsClosable(True)
         # self.tabWidget.tabCloseRequested.connect(lambda index: self.tabWidget.removeTab(index))
         # self.tabWidget.setCurrentWidget(self.tocView)
+    def checkChanged(self, node):
+        print(node.NodeType())
+
 
     def createActions(self):
         self.actionAddLayer = QAction("加载图层...", self, shortcut="Ctrl+A",
