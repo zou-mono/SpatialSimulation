@@ -25,7 +25,7 @@ from UICore.DataFactory import workspaceFactory
 from osgeo import ogr, gdal
 from UICore.Gv import DataType, model_config_params as g_cp, model_layer_meta as g_lm, Weight_neccessary, prop_neccessary, \
     land_type_dict, model_neccessary_field as g_nf
-from UICore.renderer import categrorized_renderer, single_renderer
+from UICore.renderer import categrorized_renderer, single_renderer, color_land_type
 from UICore.styles import table_default_style
 from UICore.workerThread import ModelCalWorker
 
@@ -367,20 +367,28 @@ class frmModelCal(QWidget, Ui_frmModelCal):
                 self.txt_PotentialLandFile.setText("")
                 return
 
-            sty = get_qgis_style()
-            if sty is not None:
-                color_ramp = sty.colorRamp("Spectral")
-                if color_ramp is not None:
-                    color_ramp.invert()
+            # sty = get_qgis_style()
+            # if sty is not None:
+                # color_ramp = sty.colorRamp("Spectral")
+                # if color_ramp is not None:
+                #     color_ramp.invert()
 
-                    fni, field_name = get_field_index_no_case(layer, g_lm.name_type)
-                    # fni = layer.dataProvider().fields().indexFromName(g_lm.name_type)
-                    if fni == -1:
-                        log.warning("分级渲染图层{}不存在，无法完成渲染!".format(g_lm.name_type))
-                    else:
-                        categrorized_renderer(layer, fni, land_type_dict, field_name, color_ramp)
-                else:
-                    log.warning("Spectral颜色板丢失，无法完成图层渲染！")
+            fni, field_name = get_field_index_no_case(layer, g_lm.name_type)
+            # fni = layer.dataProvider().fields().indexFromName(g_lm.name_type)
+            if fni == -1:
+                log.warning("分级渲染图层{}不存在，无法完成渲染!".format(g_lm.name_type))
+            else:
+                spec_dict = {}
+                for type_index in land_type_dict:
+                    symbol_layer = QgsSimpleFillSymbolLayer.create({
+                        'color': color_land_type[type_index],
+                        'outline_color': color_land_type[type_index]
+                    })
+                    spec_dict[type_index] = symbol_layer
+
+                categrorized_renderer(layer, fni, land_type_dict, field_name, spec_dict=spec_dict)
+                # else:
+                #     log.warning("Spectral颜色板丢失，无法完成图层渲染！")
 
             self.txt_PotentialLandFile.setText(fileName)
         except:

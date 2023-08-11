@@ -135,11 +135,11 @@ def categrorized_renderer(layer, index, data, render_field, color_ramp=None, spe
         symbol = None
 
         # initialize the default symbol for this geometry type
+        symbol = validatedDefaultSymbol(layer.geometryType())
         if spec_dict is not None:
             if unique_value in spec_dict:
-                symbol = spec_dict[unique_value]
-        else:
-            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+                symbol_layer = spec_dict[unique_value]
+                symbol.changeSymbolLayer(0, symbol_layer)
 
         # create renderer object
         if unique_value in data:
