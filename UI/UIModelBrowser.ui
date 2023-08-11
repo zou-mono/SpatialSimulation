@@ -14,13 +14,24 @@
    <string>模型结果管理器</string>
   </property>
   <widget class="QWidget" name="centralwidget">
+   <widget class="QWidget" name="layoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>0</y>
+      <width>2</width>
+      <height>2</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="verticalLayout"/>
+   </widget>
    <widget class="CollapsibleSplitter" name="splitter">
     <property name="geometry">
      <rect>
-      <x>130</x>
-      <y>130</y>
-      <width>370</width>
-      <height>192</height>
+      <x>91</x>
+      <y>80</y>
+      <width>828</width>
+      <height>431</height>
      </rect>
     </property>
     <property name="orientation">
@@ -47,13 +58,108 @@
       <attribute name="title">
        <string>Tab 1</string>
       </attribute>
-      <layout class="QHBoxLayout" name="horizontalLayout">
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
        <item>
         <widget class="CollapsibleSplitter" name="splitter_preview">
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
-         <widget class="QgsMapCanvas" name="mapPreviewer" native="true"/>
+         <widget class="QWidget" name="">
+          <layout class="QVBoxLayout" name="verticalLayout_3">
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout">
+             <item>
+              <widget class="QLabel" name="lbl_model">
+               <property name="font">
+                <font>
+                 <family>黑体</family>
+                 <pointsize>12</pointsize>
+                </font>
+               </property>
+               <property name="text">
+                <string>模型名称:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeType">
+                <enum>QSizePolicy::Fixed</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>13</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="txt_model">
+               <property name="readOnly">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer_3">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeType">
+                <enum>QSizePolicy::Fixed</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>20</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+             <item>
+              <widget class="QLabel" name="lbl_solution">
+               <property name="font">
+                <font>
+                 <family>黑体</family>
+                 <pointsize>12</pointsize>
+                </font>
+               </property>
+               <property name="text">
+                <string>优化方案名称:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="txt_solution">
+               <property name="readOnly">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer_4">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QgsMapCanvas" name="mapPreviewer" native="true"/>
+           </item>
+          </layout>
+         </widget>
          <widget class="QWebView" name="chart_webView" native="true"/>
         </widget>
        </item>

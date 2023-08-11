@@ -2,15 +2,17 @@ import json
 import os
 import uuid
 
-from PyQt5.QtCore import Qt, QSize, pyqtSlot, QUrl, QTimer, QItemSelection, QModelIndex, QItemSelectionModel
-from PyQt5.QtGui import QIcon, QPixmap, QColor, QFont
+from PyQt5.QtCore import Qt, QSize, pyqtSlot, QUrl, QTimer, QItemSelection, QModelIndex, QItemSelectionModel, QPoint, \
+    QPointF
+from PyQt5.QtGui import QIcon, QPixmap, QColor, QFont, QTextDocument
 from PyQt5.QtWidgets import QMainWindow, QStyleFactory, QTreeWidgetItem, QMessageBox, QMenu, QAction, QHBoxLayout,\
     QAbstractItemView
 import sys
 
 from qgis._core import QgsVectorLayer, QgsProject, QgsApplication, QgsSymbol, QgsSimpleFillSymbolLayer, \
-    QgsMapLayerModel, QgsLayerTreeModel, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeNode
-from qgis._gui import QgsFeatureListModel, QgsLayerTreeView, QgsLayerTreeMapCanvasBridge
+    QgsMapLayerModel, QgsLayerTreeModel, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeNode, QgsTextAnnotation, \
+    QgsCoordinateReferenceSystem, QgsAnnotationPointTextItem, QgsAnnotationLayer, QgsMapLayer, QgsTextFormat
+from qgis._gui import QgsFeatureListModel, QgsLayerTreeView, QgsLayerTreeMapCanvasBridge, QgsMapCanvasAnnotationItem
 
 from UI.UIModelBrowser import Ui_ModelBrowser
 from UICore.Gv import SplitterState, Dock, model_layer_meta, model_config_params, indicator_translate_dict, \
@@ -87,7 +89,7 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.tree_model.selectionModel().selectionChanged.connect(self.tree_model_selectionChanged)
         self.tree_model.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.tree_model.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.tree_model.layer_added.connect(self.draw_chart)
+        self.tree_model.layer_added.connect(self.on_layer_added)
 
         self.chart_webView.loadFinished.connect(self.chart_webView_loadFinished)
 
@@ -102,9 +104,10 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
         self.root = self.project.layerTreeRoot()
         self.model = QgsLayerTreeModel(self.root, self)
         self.model.setFlag(QgsLayerTreeModel.AllowNodeReorder)
+        # self.model.setFlag(QgsLayerTreeModel.ShowLegendAsTree)
         self.model.setFlag(QgsLayerTreeModel.AllowNodeChangeVisibility)
         self.model.setFlag(QgsLayerTreeModel.UseTextFormatting)
-        self.model.setFlag(QgsLayerTreeModel.AllowLegendChangeState)
+        # self.model.setFlag(QgsLayerTreeModel.AllowLegendChangeState)
         self.tocView.setModel(self.model)
 
         self.bridge = QgsLayerTreeMapCanvasBridge(self.root, self.mapPreviewer, self)
@@ -261,18 +264,55 @@ class UI_ModelBrowser(QMainWindow, Ui_ModelBrowser):
             else:
                 node.setItemVisibilityCheckedRecursive(False)
 
-    # 图层加载完成后绘制相应的chart
-    def draw_chart(self, items: list):
+    # 图层加载完成后绘制相应的chart，增加相应的装饰文字
+    def on_layer_added(self, items: list):
         if items is None:
             return
         if len(items) < 1:
             return
+
+        top_item = items[len(items) - 1]
+        self.add_model_decoration_text(top_item)
+
+        # model = top_item.data(0, modelRole.model)
+        # cur_solution_name = top_item.data(0, modelRole.solution)['name']
+        # print(model.name + "_" + cur_solution_name)
+
+        # self.add_annonation_text(top_item)
 
         self.load_items = items
 
         if self.chart_path == "":
             self.chart_path = os.path.join(get_main_path(), "resources", "radar_hist.html")
         self.chart_webView.load(QUrl.fromLocalFile(os.path.abspath(self.chart_path)))
+
+    def add_model_decoration_text(self, cur_item):
+        model_name = cur_item.data(0, modelRole.model).name
+        solution_name = cur_item.data(0, modelRole.solution)['name']
+        self.txt_model.setText(model_name)
+        self.txt_solution.setText(solution_name)
+
+    def add_annonation_text(self, top_item):
+        model = top_item.data(0, modelRole.model)
+        cur_solution_name = top_item.data(0, modelRole.solution)['name']
+
+        text = '''
+            模型名称：{}
+            方案名称：{}
+        '''.format(model.name, cur_solution_name)
+
+        notelayer = QgsAnnotationLayer('文字注记', QgsAnnotationLayer.LayerOptions(self.project.transformContext()))
+        map_coord = self.mapPreviewer.getCoordinateTransform().toMapCoordinates(QPoint(0, 0))
+        a_layer = QgsAnnotationPointTextItem(text, map_coord)
+        a_layer.setAlignment(alignment=Qt.AlignLeft)
+        text_format = QgsTextFormat()
+        text_format.setFont(QFont("微软雅黑"))
+        text_format.setSize(20)
+        a_layer.setFormat(text_format)
+        notelayer.addItem(a_layer)
+        # notelayer.setFlags(QgsMapLayer.Private)  # 不允许annnotationlayer显示在tocView
+        self.project.addMapLayer(notelayer)
+        # self.project.annotationManager().addAnnotation(a)
 
     # 绘制直方图
     def draw_histogram(self, items):
